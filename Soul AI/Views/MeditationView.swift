@@ -1,6 +1,11 @@
 import SwiftUI
 import Combine
 
+// Add a class to hold cancellables
+private class CancellableHolder: ObservableObject {
+    var cancellables = Set<AnyCancellable>()
+}
+
 struct MeditationView: View {
     @State private var selectedTopic: String = "Peace"
     @State private var meditationTitle: String = ""
@@ -11,8 +16,10 @@ struct MeditationView: View {
     @State private var progress: Float = 0.0
     @State private var timer: Timer?
     
+    // Use a reference type to hold cancellables
+    @StateObject private var cancellableHolder = CancellableHolder()
+    
     private var topics = ["Peace", "Faith", "Hope", "Love", "Forgiveness", "Gratitude", "Wisdom"]
-    private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
         ZStack {
@@ -152,7 +159,7 @@ struct MeditationView: View {
                 timer?.invalidate()
                 timer = nil
             })
-            .store(in: &cancellables)
+            .store(in: &cancellableHolder.cancellables)
     }
     
     private func togglePlayPause() {
