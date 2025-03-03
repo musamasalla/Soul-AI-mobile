@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct Soul_AIApp: App {
+    @StateObject private var preferences = UserPreferences()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(preferences)
         }
     }
 }

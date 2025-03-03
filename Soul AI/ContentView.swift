@@ -8,14 +8,30 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var preferences = UserPreferences()
+    @State private var showSettings = false
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            if !preferences.hasSeenWelcome {
+                WelcomeView(hasSeenWelcome: $preferences.hasSeenWelcome)
+            } else {
+                ZStack {
+                    ChatView()
+                        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+                        .sheet(isPresented: $showSettings) {
+                            SettingsView(preferences: preferences)
+                        }
+                        .navigationBarItems(trailing: Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gear")
+                                .font(.system(size: 18))
+                        })
+                }
+            }
         }
-        .padding()
+        .environmentObject(preferences)
     }
 }
 
