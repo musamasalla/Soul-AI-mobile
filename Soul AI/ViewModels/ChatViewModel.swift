@@ -1,12 +1,15 @@
 import Foundation
 import SwiftUI
+import Combine
 
 class ChatViewModel: ObservableObject {
     @Published var messages: [Message] = []
     @Published var inputMessage: String = ""
     @Published var isProcessing: Bool = false
     
-    // Sample Bible verses and Christian responses
+    private var cancellables = Set<AnyCancellable>()
+    
+    // Sample Bible verses and Christian responses as fallback
     private let christianResponses = [
         "The Lord is my shepherd; I shall not want. - Psalm 23:1",
         "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life. - John 3:16",
@@ -27,26 +30,39 @@ class ChatViewModel: ObservableObject {
         // Clear input field
         inputMessage = ""
         
-        // Simulate AI processing
+        // Start AI processing
         isProcessing = true
         
-        // Simulate network delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            guard let self = self else { return }
-            
-            // Generate a response
-            let responseContent = self.generateResponse(for: userMessage.content)
-            let assistantMessage = Message(content: responseContent, role: .assistant)
-            
-            self.messages.append(assistantMessage)
-            self.isProcessing = false
+        // Convert messages to the format expected by the API
+        let chatHistory = messages.map { message -> [String: String] in
+            return [
+                "role": message.role == .user ? "user" : "assistant",
+                "content": message.content
+            ]
         }
-    }
-    
-    private func generateResponse(for message: String) -> String {
-        // In a real app, this would call an API to get a response from a Christian AI model
-        // For now, we'll return a random Bible verse or Christian response
-        return christianResponses.randomElement() ?? "May God bless you on your journey."
+        
+        // Call the Supabase service
+        SupabaseService.shared.sendMessage(message: userMessage.content, chatHistory: chatHistory)
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { [weak self] completion in
+                guard let self = self else { return }
+                
+                if case .failure(let error) = completion {
+                    print("Error getting response: \(error.localizedDescription)")
+                    // Use fallback response in case of error
+                    let fallbackResponse = self.christianResponses.randomElement() ?? "May God bless you on your journey."
+                    let assistantMessage = Message(content: fallbackResponse, role: .assistant)
+                    self.messages.append(assistantMessage)
+                }
+                
+                self.isProcessing = false
+            }, receiveValue: { [weak self] response in
+                guard let self = self else { return }
+                
+                let assistantMessage = Message(content: response, role: .assistant)
+                self.messages.append(assistantMessage)
+            })
+            .store(in: &cancellables)
     }
     
     // Add some initial messages for demonstration
@@ -58,5 +74,21 @@ class ChatViewModel: ObservableObject {
             )
             messages.append(welcomeMessage)
         }
+    }
+    
+    // Get daily inspiration
+    func getDailyInspiration(completion: @escaping (String) -> Void) {
+        SupabaseService.shared.getDailyInspiration()
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { completionStatus in
+                if case .failure(let error) = completionStatus {
+                    print("Error getting daily inspiration: \(error.localizedDescription)")
+                    // Use fallback in case of error
+                    completion(self.christianResponses.randomElement() ?? "May God bless you today and always.")
+                }
+            }, receiveValue: { inspiration in
+                completion(inspiration)
+            })
+            .store(in: &cancellables)
     }
 } 
