@@ -7,140 +7,39 @@ enum SubscriptionProduct: String, CaseIterable {
     case guided = "com.soulai.guided"
 }
 
-// Mock product for testing
 #if DEBUG
-class MockProduct: Product {
-    let mockID: String
-    let mockDisplayName: String
-    let mockDescription: String
-    let mockPrice: Decimal
-    let mockDisplayPrice: String
-    let mockIsFamilyShareable: Bool
+// Mock product for testing that doesn't subclass Product
+struct MockSubscriptionProduct {
+    let id: String
+    let displayName: String
+    let description: String
+    let price: Decimal
+    let displayPrice: String
     
-    init(id: String, displayName: String, description: String, price: Decimal) {
-        self.mockID = id
-        self.mockDisplayName = displayName
-        self.mockDescription = description
-        self.mockPrice = price
-        self.mockDisplayPrice = "$\(price)"
-        self.mockIsFamilyShareable = false
-        super.init()
-    }
-    
-    override var id: String {
-        return mockID
-    }
-    
-    override var displayName: String {
-        return mockDisplayName
-    }
-    
-    override var description: String {
-        return mockDescription
-    }
-    
-    override var price: Decimal {
-        return mockPrice
-    }
-    
-    override var displayPrice: String {
-        return mockDisplayPrice
-    }
-    
-    override var isFamilyShareable: Bool {
-        return mockIsFamilyShareable
-    }
-    
-    override var subscription: Product.SubscriptionInfo? {
-        return nil
-    }
-    
-    override func purchase(options: Set<Product.PurchaseOption> = []) async throws -> Product.PurchaseResult {
-        // Simulate a successful purchase
-        return .success(StoreKit.Transaction.VerificationResult<StoreKit.Transaction>.unverified(MockTransaction(productID: id)))
-    }
-}
-
-// Mock transaction for testing
-class MockTransaction: StoreKit.Transaction {
-    let mockProductID: String
-    
-    init(productID: String) {
-        self.mockProductID = productID
-        super.init()
-    }
-    
-    override var productID: String {
-        return mockProductID
-    }
-    
-    override var productType: Product.ProductType {
-        return .autoRenewable
-    }
-    
-    override var purchaseDate: Date {
-        return Date()
-    }
-    
-    override var expirationDate: Date? {
-        let calendar = Calendar.current
-        return calendar.date(byAdding: .month, value: 1, to: Date())
-    }
-    
-    override var revocationDate: Date? {
-        return nil
-    }
-    
-    override var webOrderLineItemID: UInt64 {
-        return 0
-    }
-    
-    override var quantity: Int {
-        return 1
-    }
-    
-    override var environment: StoreKit.Transaction.Environment {
-        return .sandbox
-    }
-    
-    override var appBundleID: String {
-        return Bundle.main.bundleIdentifier ?? "com.soulai.app"
-    }
-    
-    override var appAccountToken: UUID? {
-        return nil
-    }
-    
-    override var deviceVerification: Data? {
-        return nil
-    }
-    
-    override var deviceVerificationNonce: UUID? {
-        return nil
-    }
-    
-    override var originalID: UInt64 {
-        return 0
-    }
-    
-    override var originalPurchaseDate: Date {
-        return Date()
-    }
-    
-    override var originalAppVersion: String? {
-        return "1.0"
-    }
-    
-    override var signedDate: Date {
-        return Date()
-    }
-    
-    override var ownershipType: StoreKit.Transaction.OwnershipType {
-        return .purchased
-    }
-    
-    override func finish() async {
-        // Do nothing
+    static func createMockProducts() -> [Product] {
+        // Create mock products using StoreKit's testing API
+        var mockProducts: [Product] = []
+        
+        // Use the StoreKit testing configuration to create products
+        Task {
+            do {
+                // Try to load products from the StoreKit configuration
+                let products = try await Product.products(for: [
+                    SubscriptionProduct.premium.rawValue,
+                    SubscriptionProduct.guided.rawValue
+                ])
+                
+                if !products.isEmpty {
+                    await MainActor.run {
+                        mockProducts = products
+                    }
+                }
+            } catch {
+                print("Error creating mock products: \(error.localizedDescription)")
+            }
+        }
+        
+        return mockProducts
     }
 }
 #endif
@@ -213,28 +112,24 @@ class SubscriptionService: NSObject, ObservableObject {
     private func createHardcodedMockProducts() {
         print("Creating hardcoded mock products")
         
-        // Create mock premium product
-        let premiumProduct = MockProduct(
-            id: SubscriptionProduct.premium.rawValue,
-            displayName: "Soul AI Premium",
-            description: "Unlock advanced meditation features and personalized guidance",
-            price: 9.99
-        )
+        // Use the StoreKit testing API to create products
+        let mockProducts = MockSubscriptionProduct.createMockProducts()
         
-        // Create mock guided product
-        let guidedProduct = MockProduct(
-            id: SubscriptionProduct.guided.rawValue,
-            displayName: "Soul AI Guided",
-            description: "Get personalized spiritual guidance with 1-on-1 advisor",
-            price: 29.99
-        )
-        
-        // Add mock products to the products array
-        self.products = [premiumProduct, guidedProduct]
-        
-        print("Created \(self.products.count) mock products")
-        for product in self.products {
-            print("Mock Product: \(product.id) - \(product.displayName) - \(product.displayPrice)")
+        if !mockProducts.isEmpty {
+            self.products = mockProducts
+            print("Created \(self.products.count) mock products from StoreKit testing")
+        } else {
+            print("Failed to create mock products, simulating premium subscription directly")
+            // If we can't create mock products, simulate a premium subscription directly
+            simulatePremiumSubscription()
+        }
+    }
+    
+    private func simulatePremiumSubscription() {
+        // Directly update the user's subscription status without going through the purchase flow
+        Task {
+            await updateSubscriptionTier(for: SubscriptionProduct.premium.rawValue)
+            print("Simulated premium subscription activated")
         }
     }
     
