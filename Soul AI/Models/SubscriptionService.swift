@@ -23,9 +23,9 @@ class SubscriptionService: NSObject, ObservableObject {
         Task {
             await requestProducts()
             
-            // Try to update purchased products, but don't fail if there's no active account
+            // Try to update purchased products
             do {
-                await updatePurchasedProducts()
+                try await updatePurchasedProducts()
             } catch {
                 print("Warning: Could not update purchased products: \(error.localizedDescription)")
                 // Continue anyway - this is expected in the testing environment
@@ -54,26 +54,32 @@ class SubscriptionService: NSObject, ObservableObject {
             // For testing environment, create mock products if real ones fail to load
             #if DEBUG
             print("Creating mock products for testing environment")
-            if let mockProduct = createMockProduct(for: SubscriptionProduct.premium.rawValue) {
-                products = [mockProduct]
-            }
+            // Use a different approach for mock products that doesn't use async in a sync context
+            createMockProductsForTesting()
             #endif
             
             isLoading = false
         }
     }
     
-    // Create a mock product for testing
+    // Create mock products for testing
     #if DEBUG
-    private func createMockProduct(for productID: String) -> Product? {
-        // This is a workaround for testing only
+    private func createMockProductsForTesting() {
+        // This is a workaround for testing only - create dummy products
         // In a real app, you would never do this
-        do {
-            let products = try Product.products(for: [productID])
-            return products.first
-        } catch {
-            print("Could not create mock product: \(error.localizedDescription)")
-            return nil
+        
+        // Create a task to load products asynchronously
+        Task {
+            do {
+                let loadedProducts = try await Product.products(for: [SubscriptionProduct.premium.rawValue])
+                if let product = loadedProducts.first {
+                    await MainActor.run {
+                        self.products = [product]
+                    }
+                }
+            } catch {
+                print("Could not create mock product: \(error.localizedDescription)")
+            }
         }
     }
     #endif
@@ -124,7 +130,7 @@ class SubscriptionService: NSObject, ObservableObject {
     func restorePurchases() async throws {
         do {
             try await AppStore.sync()
-            await updatePurchasedProducts()
+            try await updatePurchasedProducts()
         } catch {
             // Special handling for testing environment
             #if DEBUG
@@ -141,21 +147,22 @@ class SubscriptionService: NSObject, ObservableObject {
     
     // Update the list of purchased products
     @MainActor
-    func updatePurchasedProducts() async {
-        do {
-            for await result in Transaction.currentEntitlements {
-                if case .verified(let transaction) = result {
-                    if transaction.revocationDate == nil {
-                        purchasedProductIDs.insert(transaction.productID)
-                        await updateSubscriptionTier(for: transaction.productID)
-                    } else {
-                        purchasedProductIDs.remove(transaction.productID)
-                    }
+    func updatePurchasedProducts() async throws {
+        var hasError: Error? = nil
+        
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result {
+                if transaction.revocationDate == nil {
+                    purchasedProductIDs.insert(transaction.productID)
+                    await updateSubscriptionTier(for: transaction.productID)
+                } else {
+                    purchasedProductIDs.remove(transaction.productID)
                 }
             }
-        } catch {
-            print("Error updating purchased products: \(error.localizedDescription)")
-            // Continue anyway - this is expected in the testing environment
+        }
+        
+        if let error = hasError {
+            throw error
         }
     }
     
@@ -187,7 +194,11 @@ class SubscriptionService: NSObject, ObservableObject {
         return Task.detached {
             for await verificationResult in Transaction.updates {
                 if case .verified(let transaction) = verificationResult {
-                    await self.updatePurchasedProducts()
+                    do {
+                        try await self.updatePurchasedProducts()
+                    } catch {
+                        print("Error updating purchased products: \(error.localizedDescription)")
+                    }
                     await transaction.finish()
                 }
             }
