@@ -9,6 +9,7 @@ struct SupabaseConfig {
     static let chatEndpoint = "\(supabaseUrl)/functions/v1/chat"
     static let dailyInspirationEndpoint = "\(supabaseUrl)/functions/v1/generate-daily-inspiration"
     static let meditationEndpoint = "\(supabaseUrl)/functions/v1/generate-meditation"
+    static let advancedMeditationEndpoint = "\(supabaseUrl)/functions/v1/generate-advanced-meditation"
     static let podcastEndpoint = "\(supabaseUrl)/functions/v1/generate-podcast"
     static let summaryEndpoint = "\(supabaseUrl)/functions/v1/generate-summary"
     

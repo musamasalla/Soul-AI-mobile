@@ -26,6 +26,37 @@ struct SettingsView: View {
                         }
                     }
                     
+                    // Subscription section
+                    Section(header: Text("Subscription").foregroundColor(Color.brandMint)) {
+                        HStack {
+                            Text("Current Plan")
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(preferences.subscriptionTier.rawValue.capitalized)
+                                .foregroundColor(Color.brandMint.opacity(0.8))
+                        }
+                        
+                        if preferences.subscriptionTier != .free, let expiryDate = preferences.subscriptionExpiryDate {
+                            HStack {
+                                Text("Renews")
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Text(expiryDate, style: .date)
+                                    .foregroundColor(Color.brandMint.opacity(0.8))
+                            }
+                        }
+                        
+                        NavigationLink(destination: SubscriptionView()) {
+                            if preferences.subscriptionTier == .free {
+                                Text("Upgrade to Premium")
+                                    .foregroundColor(.white)
+                            } else {
+                                Text("Manage Subscription")
+                                    .foregroundColor(.white)
+                            }
+                        }
+                    }
+                    
                     Section(header: Text("Appearance").foregroundColor(Color.brandMint)) {
                         Toggle("Dark Mode", isOn: $preferences.isDarkMode)
                             .foregroundColor(.white)

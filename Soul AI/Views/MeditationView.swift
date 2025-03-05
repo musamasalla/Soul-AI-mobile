@@ -8,12 +8,15 @@ private class CancellableHolder: ObservableObject {
 
 struct MeditationView: View {
     @StateObject private var viewModel = MeditationViewModel()
+    @EnvironmentObject private var preferences: UserPreferences
     @State private var isPlaying: Bool = false
     @State private var progress: Float = 0.0
     @State private var timer: Timer?
     @State private var showCopyConfirmation: Bool = false
+    @State private var selectedTab = 0
     
-    private var topics = ["Peace", "Faith", "Hope", "Love", "Forgiveness", "Gratitude", "Wisdom"]
+    private var basicTopics = ["Peace", "Faith", "Hope", "Love"]
+    private var premiumTopics = ["Forgiveness", "Gratitude", "Wisdom", "Patience", "Kindness", "Self-Control", "Gentleness", "Joy"]
     
     var body: some View {
         ZStack {
@@ -21,230 +24,343 @@ struct MeditationView: View {
             Color.brandBackground
                 .ignoresSafeArea()
             
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    Text("Christian Meditation")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.brandMint)
-                        .padding(.top, 20)
-                    
-                    // Input Section
-                    VStack(spacing: 20) {
-                        // Mood input
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("How are you feeling today?")
-                                .font(.headline)
-                                .foregroundColor(.brandMint)
-                            
-                            TextEditor(text: $viewModel.moodText)
-                                .frame(height: 100)
-                                .padding(12)
-                                .background(Color(.systemGray6).opacity(0.3))
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
-                                )
-                                .font(.body)
-                        }
-                        .padding(.horizontal)
-                        
-                        // Energy level slider
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Energy Level: \(Int(viewModel.energyLevel))/10")
-                                .font(.subheadline)
-                                .foregroundColor(.brandMint)
-                            
-                            Slider(value: $viewModel.energyLevel, in: 1...10, step: 1)
-                                .accentColor(.brandMint)
-                        }
-                        .padding(.horizontal)
-                        
-                        // Stress level slider
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Stress Level: \(Int(viewModel.stressLevel))/10")
-                                .font(.subheadline)
-                                .foregroundColor(.brandMint)
-                            
-                            Slider(value: $viewModel.stressLevel, in: 1...10, step: 1)
-                                .accentColor(.brandMint)
-                        }
-                        .padding(.horizontal)
-                        
-                        // Generate button
-                        Button(action: {
-                            viewModel.generateMeditation()
-                        }) {
-                            HStack {
-                                Text("Generate Meditation")
-                                    .fontWeight(.semibold)
-                                if viewModel.isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
-                                        .scaleEffect(0.8)
-                                }
-                            }
-                            .foregroundColor(.black)
-                            .padding(.vertical, 14)
-                            .padding(.horizontal, 30)
-                            .background(Color.brandMint)
-                            .cornerRadius(12)
-                            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                        }
-                        .disabled(viewModel.isLoading || isPlaying)
-                        .opacity((viewModel.isLoading || isPlaying) ? 0.5 : 1.0)
-                        .padding(.top, 8)
-                    }
-                    
-                    // Error message
-                    if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .padding(.top, 5)
-                    }
-                    
-                    // Meditation content
-                    if !viewModel.meditationTitle.isEmpty {
-                        VStack(alignment: .leading, spacing: 20) {
-                            // Title and copy button
-                            HStack {
-                                Text(viewModel.meditationTitle)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.brandMint)
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    UIPasteboard.general.string = viewModel.meditationContent
-                                    showCopyConfirmation = true
-                                    
-                                    // Hide confirmation after 2 seconds
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                        showCopyConfirmation = false
-                                    }
-                                }) {
-                                    Image(systemName: "doc.on.doc")
-                                        .foregroundColor(.brandMint)
-                                        .padding(8)
-                                        .background(Color.brandMint.opacity(0.2))
-                                        .clipShape(Circle())
-                                }
-                                .overlay(
-                                    Group {
-                                        if showCopyConfirmation {
-                                            Text("Copied!")
-                                                .font(.caption)
-                                                .foregroundColor(.white)
-                                                .padding(6)
-                                                .background(Color.brandMint)
-                                                .cornerRadius(4)
-                                                .offset(y: 30)
-                                                .transition(.opacity)
-                                        }
-                                    }
-                                )
-                            }
-                            .padding(.bottom, 5)
-                            
-                            // Paragraphs
-                            VStack(alignment: .leading, spacing: 16) {
-                                ForEach(viewModel.meditationParagraphs.indices, id: \.self) { index in
-                                    ParagraphCard(text: viewModel.meditationParagraphs[index], index: index)
-                                }
-                            }
-                            
-                            // Duration
-                            HStack {
-                                Image(systemName: "clock")
-                                    .foregroundColor(.brandMint)
-                                
-                                Text("Duration: \(viewModel.meditationDuration) minutes")
-                                    .font(.subheadline)
-                                    .foregroundColor(.brandMint.opacity(0.9))
-                            }
-                            .padding(.top, 10)
-                        }
-                        .padding()
-                        .background(Color(.systemGray6).opacity(0.15))
-                        .cornerRadius(16)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.brandMint.opacity(0.4), lineWidth: 1)
-                        )
-                        .padding(.horizontal)
-                        
-                        // Player controls
-                        VStack(spacing: 15) {
-                            // Progress bar
-                            HStack {
-                                Text(formatTime(seconds: Int(progress * Float(viewModel.meditationDuration * 60))))
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                
-                                ProgressView(value: progress)
-                                    .progressViewStyle(LinearProgressViewStyle(tint: .brandMint))
-                                
-                                Text(formatTime(seconds: viewModel.meditationDuration * 60))
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.horizontal)
-                            
-                            // Play/Pause button
-                            Button(action: {
-                                togglePlayPause()
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.brandMint.opacity(0.2))
-                                        .frame(width: 70, height: 70)
-                                    
-                                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.brandMint)
-                                }
-                            }
-                        }
-                        .padding()
-                    }
-                    
-                    Spacer(minLength: 40)
+            VStack(spacing: 0) {
+                // Tab selector for Basic and Advanced meditations
+                Picker("Meditation Type", selection: $selectedTab) {
+                    Text("Basic").tag(0)
+                    Text("Advanced").tag(1)
                 }
-                .padding(.bottom, 20)
-            }
-        }
-        .preferredColorScheme(.dark)
-    }
-    
-    private func togglePlayPause() {
-        isPlaying.toggle()
-        
-        if isPlaying {
-            // Start the timer
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                let totalSeconds = Float(viewModel.meditationDuration * 60)
-                progress += 1.0 / totalSeconds
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                .colorMultiply(.brandMint)
                 
-                if progress >= 1.0 {
-                    isPlaying = false
-                    timer?.invalidate()
-                    timer = nil
-                    progress = 1.0
+                // Content based on selected tab
+                if selectedTab == 0 {
+                    // Basic meditation content
+                    basicMeditationView
+                } else {
+                    // Advanced meditation content (premium)
+                    PremiumFeatureView(
+                        featureName: "Advanced Meditation",
+                        featureDescription: "Access personalized guided meditations tailored to your spiritual journey",
+                        featureIcon: "heart.fill"
+                    ) {
+                        advancedMeditationView
+                    }
                 }
             }
-        } else {
-            // Pause the timer
-            timer?.invalidate()
+        }
+        .navigationTitle("Meditation")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    // Basic meditation view
+    private var basicMeditationView: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header
+                Text("Christian Meditation")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.brandMint)
+                    .padding(.top, 20)
+                
+                // Input Section
+                VStack(spacing: 20) {
+                    // Mood input
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("How are you feeling today?")
+                            .font(.headline)
+                            .foregroundColor(.brandMint)
+                        
+                        TextEditor(text: $viewModel.moodText)
+                            .frame(height: 100)
+                            .padding(12)
+                            .background(Color(.systemGray6).opacity(0.3))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
+                            )
+                            .font(.body)
+                    }
+                    
+                    // Topic selection
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Select a topic:")
+                            .font(.headline)
+                            .foregroundColor(.brandMint)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(basicTopics, id: \.self) { topic in
+                                    Button(action: {
+                                        viewModel.selectedTopic = topic
+                                    }) {
+                                        Text(topic)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(
+                                                viewModel.selectedTopic == topic ?
+                                                Color.brandMint :
+                                                Color(.systemGray6).opacity(0.3)
+                                            )
+                                            .foregroundColor(
+                                                viewModel.selectedTopic == topic ?
+                                                .black :
+                                                .white
+                                            )
+                                            .cornerRadius(20)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    
+                    // Generate button
+                    Button(action: {
+                        viewModel.generateMeditation()
+                    }) {
+                        HStack {
+                            Text("Generate Meditation")
+                                .font(.headline)
+                            
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    .padding(.leading, 5)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.brandMint)
+                        .foregroundColor(.black)
+                        .cornerRadius(12)
+                    }
+                    .disabled(viewModel.isLoading)
+                    .opacity(viewModel.isLoading ? 0.7 : 1.0)
+                }
+                .padding(.horizontal)
+                
+                // Error message
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .padding(.top, 5)
+                }
+                
+                // Display meditation content if available
+                if let meditation = viewModel.meditation {
+                    VStack(spacing: 16) {
+                        Text(meditation.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.brandMint)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Text(meditation.content)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .lineSpacing(6)
+                            .padding()
+                            .background(Color(.systemGray6).opacity(0.3))
+                            .cornerRadius(12)
+                        
+                        // Share button
+                        Button(action: {
+                            let textToShare = "\(meditation.title)\n\n\(meditation.content)"
+                            let activityVC = UIActivityViewController(activityItems: [textToShare], applicationActivities: nil)
+                            
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let rootViewController = windowScene.windows.first?.rootViewController {
+                                rootViewController.present(activityVC, animated: true, completion: nil)
+                            }
+                        }) {
+                            Label("Share Meditation", systemImage: "square.and.arrow.up")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(.systemGray6).opacity(0.3))
+                                .foregroundColor(.brandMint)
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.vertical)
+                }
+            }
+            .padding(.bottom, 40)
         }
     }
     
-    private func formatTime(seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
+    // Advanced meditation view (premium)
+    private var advancedMeditationView: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header
+                Text("Advanced Christian Meditation")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.brandMint)
+                    .padding(.top, 20)
+                
+                // Input Section
+                VStack(spacing: 20) {
+                    // Mood input
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("How are you feeling today?")
+                            .font(.headline)
+                            .foregroundColor(.brandMint)
+                        
+                        TextEditor(text: $viewModel.moodText)
+                            .frame(height: 100)
+                            .padding(12)
+                            .background(Color(.systemGray6).opacity(0.3))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
+                            )
+                            .font(.body)
+                    }
+                    
+                    // Scripture input (premium feature)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Specific scripture (optional):")
+                            .font(.headline)
+                            .foregroundColor(.brandMint)
+                        
+                        TextField("e.g., Psalm 23, John 3:16", text: $viewModel.scriptureReference)
+                            .padding()
+                            .background(Color(.systemGray6).opacity(0.3))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
+                            )
+                    }
+                    
+                    // Duration selection (premium feature)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Meditation duration:")
+                            .font(.headline)
+                            .foregroundColor(.brandMint)
+                        
+                        Picker("Duration", selection: $viewModel.meditationDuration) {
+                            Text("5 minutes").tag(5)
+                            Text("10 minutes").tag(10)
+                            Text("15 minutes").tag(15)
+                            Text("20 minutes").tag(20)
+                            Text("30 minutes").tag(30)
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .colorMultiply(.brandMint)
+                    }
+                    
+                    // Topic selection with premium topics
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Select a topic:")
+                            .font(.headline)
+                            .foregroundColor(.brandMint)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(basicTopics + premiumTopics, id: \.self) { topic in
+                                    Button(action: {
+                                        viewModel.selectedTopic = topic
+                                    }) {
+                                        Text(topic)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(
+                                                viewModel.selectedTopic == topic ?
+                                                Color.brandMint :
+                                                Color(.systemGray6).opacity(0.3)
+                                            )
+                                            .foregroundColor(
+                                                viewModel.selectedTopic == topic ?
+                                                .black :
+                                                .white
+                                            )
+                                            .cornerRadius(20)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    
+                    // Generate button
+                    Button(action: {
+                        viewModel.generateAdvancedMeditation()
+                    }) {
+                        HStack {
+                            Text("Generate Advanced Meditation")
+                                .font(.headline)
+                            
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    .padding(.leading, 5)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.brandMint)
+                        .foregroundColor(.black)
+                        .cornerRadius(12)
+                    }
+                    .disabled(viewModel.isLoading)
+                    .opacity(viewModel.isLoading ? 0.7 : 1.0)
+                }
+                .padding(.horizontal)
+                
+                // Display meditation content if available
+                if let meditation = viewModel.meditation {
+                    VStack(spacing: 16) {
+                        Text(meditation.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.brandMint)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Text(meditation.content)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .lineSpacing(6)
+                            .padding()
+                            .background(Color(.systemGray6).opacity(0.3))
+                            .cornerRadius(12)
+                        
+                        // Share button
+                        Button(action: {
+                            let textToShare = "\(meditation.title)\n\n\(meditation.content)"
+                            let activityVC = UIActivityViewController(activityItems: [textToShare], applicationActivities: nil)
+                            
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let rootViewController = windowScene.windows.first?.rootViewController {
+                                rootViewController.present(activityVC, animated: true, completion: nil)
+                            }
+                        }) {
+                            Label("Share Meditation", systemImage: "square.and.arrow.up")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(.systemGray6).opacity(0.3))
+                                .foregroundColor(.brandMint)
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.vertical)
+                }
+            }
+            .padding(.bottom, 40)
+        }
     }
 }
 

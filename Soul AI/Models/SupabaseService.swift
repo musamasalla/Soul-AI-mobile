@@ -188,7 +188,7 @@ class SupabaseService {
             .eraseToAnyPublisher()
     }
     
-    func generateMeditationWithMood(requestBody: [String: Any]) -> AnyPublisher<MeditationResponseWithParagraphs, Error> {
+    func generateMeditationWithMood(requestBody: [String: Any]) -> AnyPublisher<MeditationResponse, Error> {
         guard let url = URL(string: SupabaseConfig.meditationEndpoint) else {
             return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
         }
@@ -214,40 +214,48 @@ class SupabaseService {
                 }
                 
                 guard (200...299).contains(httpResponse.statusCode) else {
-                    // Try to extract error message from response
-                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = errorData["error"] as? String {
-                        throw NSError(domain: "SupabaseErrorDomain", 
-                                     code: httpResponse.statusCode,
-                                     userInfo: [NSLocalizedDescriptionKey: errorMessage])
-                    } else {
-                        throw NSError(domain: "SupabaseErrorDomain", 
-                                     code: httpResponse.statusCode,
-                                     userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
-                    }
+                    throw URLError(.badServerResponse)
                 }
-                
-                // Log response for debugging
-                #if DEBUG
-                if let responseString = String(data: data, encoding: .utf8) {
-                    print("API Response: \(responseString)")
-                }
-                #endif
                 
                 return data
             }
-            .decode(type: MeditationResponseWithParagraphs.self, decoder: JSONDecoder())
-            .map { response in
-                // Add default duration if not provided
-                let duration = 10
-                // No need to modify content or paragraphs as they're already handled in the decoder
-                return MeditationResponseWithParagraphs(
-                    title: response.title,
-                    content: response.content,
-                    duration: duration,
-                    paragraphs: response.paragraphs
-                )
+            .decode(type: MeditationResponse.self, decoder: JSONDecoder())
+            .eraseToAnyPublisher()
+    }
+    
+    // Advanced meditation generation for premium users
+    func generateAdvancedMeditation(requestBody: [String: Any]) -> AnyPublisher<MeditationResponse, Error> {
+        guard let url = URL(string: SupabaseConfig.advancedMeditationEndpoint) else {
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+        
+        return session.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw URLError(.badServerResponse)
+                }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    throw URLError(.badServerResponse)
+                }
+                
+                return data
             }
+            .decode(type: MeditationResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }
     
@@ -424,7 +432,7 @@ struct InspirationResponse: Codable {
 struct MeditationResponse: Codable {
     let title: String
     let content: String
-    var duration: Int
+    let duration: Int
     
     enum CodingKeys: String, CodingKey {
         case title
@@ -440,15 +448,26 @@ struct MeditationResponse: Codable {
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        title = try container.decode(String.self, forKey: .title)
-        content = try container.decode(String.self, forKey: .content)
         
-        // Try to decode duration, but use a default value if it's not present
-        if let decodedDuration = try? container.decode(Int.self, forKey: .duration) {
-            duration = decodedDuration
+        // Decode title with fallback
+        if let title = try? container.decode(String.self, forKey: .title) {
+            self.title = title
         } else {
-            // Default duration (10 minutes)
-            duration = 10
+            self.title = "Christian Meditation"
+        }
+        
+        // Decode content with fallback
+        if let content = try? container.decode(String.self, forKey: .content) {
+            self.content = content
+        } else {
+            self.content = "Take a deep breath and reflect on God's love. Remember that in all things, God works for the good of those who love him."
+        }
+        
+        // Decode duration with fallback
+        if let duration = try? container.decode(Int.self, forKey: .duration) {
+            self.duration = duration
+        } else {
+            self.duration = 5
         }
     }
 }
