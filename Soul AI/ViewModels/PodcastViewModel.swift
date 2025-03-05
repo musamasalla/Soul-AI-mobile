@@ -93,9 +93,9 @@ class PodcastViewModel: ObservableObject {
             "duration": 5 // Basic podcasts are fixed at 5 minutes
         ]
         
-        SupabaseService.shared.generatePodcast(requestBody: requestBody)
+        SupabaseService.shared.generatePremiumPodcast(requestBody: requestBody)
             .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
+            .sink(receiveCompletion: { [weak self] (completion: Subscribers.Completion<Error>) in
                 guard let self = self else { return }
                 
                 if case .failure(let error) = completion {
@@ -111,14 +111,14 @@ class PodcastViewModel: ObservableObject {
                 }
                 
                 self.isLoading = false
-            }, receiveValue: { [weak self] response in
+            }, receiveValue: { [weak self] (response: PodcastResponse) in
                 guard let self = self else { return }
                 
                 // Clean up title but preserve formatting for content
                 var title = response.title
                 title = title.replacingOccurrences(of: "###", with: "")
                 title = title.replacingOccurrences(of: "**", with: "")
-                title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                title = title.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 
                 // Create podcast object
                 self.podcast = Podcast(
@@ -209,7 +209,7 @@ class PodcastViewModel: ObservableObject {
         // Original code for production
         SupabaseService.shared.generatePremiumPodcast(requestBody: requestBody)
             .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
+            .sink(receiveCompletion: { [weak self] (completion: Subscribers.Completion<Error>) in
                 guard let self = self else { return }
                 
                 if case .failure(let error) = completion {
@@ -225,10 +225,21 @@ class PodcastViewModel: ObservableObject {
                 }
                 
                 self.isLoading = false
-            }, receiveValue: { [weak self] podcast in
+            }, receiveValue: { [weak self] (podcast: PodcastResponse) in
                 guard let self = self else { return }
                 
-                self.podcast = podcast
+                // Clean up title but preserve formatting for content
+                var title = podcast.title
+                title = title.replacingOccurrences(of: "###", with: "")
+                title = title.replacingOccurrences(of: "**", with: "")
+                title = title.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                
+                self.podcast = Podcast(
+                    title: title,
+                    content: podcast.content,
+                    duration: podcast.duration > 0 ? podcast.duration : 5
+                )
+                
                 self.showPodcast = true
             })
             .store(in: &cancellables)
