@@ -79,6 +79,6 @@ struct TypingIndicatorView: View {
 
 #Preview {
     TypingIndicatorView()
-        .background(Color.brandBackground)
+        .background(Color.AppTheme.background)
         .environmentObject(UserPreferences())
 } 

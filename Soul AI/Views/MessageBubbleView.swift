@@ -75,7 +75,7 @@ struct MessageBubbleView: View {
             MessageBubbleView(message: Message(content: "Hello, how can I help you today with your faith journey? I'm here to provide guidance and support based on Christian teachings.", role: .assistant))
             MessageBubbleView(message: Message(content: "I have a question about faith and doubt. How do I handle moments of uncertainty?", role: .user))
         }
-        .background(Color.brandBackground)
+        .background(Color.AppTheme.background)
         .environmentObject(UserPreferences())
     }
 } 

@@ -21,7 +21,7 @@ struct MeditationView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.brandBackground
+            Color.AppTheme.background
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
