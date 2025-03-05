@@ -7,17 +7,10 @@ private class CancellableHolder: ObservableObject {
 }
 
 struct MeditationView: View {
-    @State private var selectedTopic: String = "Peace"
-    @State private var meditationTitle: String = ""
-    @State private var meditationContent: String = ""
-    @State private var meditationDuration: Int = 0
-    @State private var isLoading: Bool = false
+    @StateObject private var viewModel = MeditationViewModel()
     @State private var isPlaying: Bool = false
     @State private var progress: Float = 0.0
     @State private var timer: Timer?
-    
-    // Use a reference type to hold cancellables
-    @StateObject private var cancellableHolder = CancellableHolder()
     
     private var topics = ["Peace", "Faith", "Hope", "Love", "Forgiveness", "Gratitude", "Wisdom"]
     
@@ -34,39 +27,53 @@ struct MeditationView: View {
                     .foregroundColor(.brandMint)
                     .padding(.top, 20)
                 
-                // Topic selection
+                // Mood input
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Select a topic:")
+                    Text("How are you feeling today?")
                         .font(.headline)
                         .foregroundColor(.brandMint)
                     
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(topics, id: \.self) { topic in
-                                Button(action: {
-                                    selectedTopic = topic
-                                }) {
-                                    Text(topic)
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 16)
-                                        .background(selectedTopic == topic ? Color.brandMint : Color(.systemGray6).opacity(0.3))
-                                        .foregroundColor(selectedTopic == topic ? .black : .white)
-                                        .cornerRadius(20)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 5)
-                    }
+                    TextEditor(text: $viewModel.moodText)
+                        .frame(height: 100)
+                        .padding(8)
+                        .background(Color(.systemGray6).opacity(0.3))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
+                        )
+                }
+                .padding(.horizontal)
+                
+                // Energy level slider
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Energy Level: \(Int(viewModel.energyLevel))/10")
+                        .font(.subheadline)
+                        .foregroundColor(.brandMint)
+                    
+                    Slider(value: $viewModel.energyLevel, in: 1...10, step: 1)
+                        .accentColor(.brandMint)
+                }
+                .padding(.horizontal)
+                
+                // Stress level slider
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Stress Level: \(Int(viewModel.stressLevel))/10")
+                        .font(.subheadline)
+                        .foregroundColor(.brandMint)
+                    
+                    Slider(value: $viewModel.stressLevel, in: 1...10, step: 1)
+                        .accentColor(.brandMint)
                 }
                 .padding(.horizontal)
                 
                 // Generate button
                 Button(action: {
-                    generateMeditation()
+                    viewModel.generateMeditation()
                 }) {
                     HStack {
                         Text("Generate Meditation")
-                        if isLoading {
+                        if viewModel.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .black))
                                 .scaleEffect(0.8)
@@ -78,25 +85,36 @@ struct MeditationView: View {
                     .background(Color.brandMint)
                     .cornerRadius(10)
                 }
-                .disabled(isLoading || isPlaying)
-                .opacity((isLoading || isPlaying) ? 0.5 : 1.0)
+                .disabled(viewModel.isLoading || isPlaying)
+                .opacity((viewModel.isLoading || isPlaying) ? 0.5 : 1.0)
+                
+                // Error message
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .padding(.top, 5)
+                }
                 
                 // Meditation content
-                if !meditationTitle.isEmpty {
+                if !viewModel.meditationTitle.isEmpty {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 15) {
-                            Text(meditationTitle)
+                            Text(viewModel.meditationTitle)
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.brandMint)
                                 .padding(.bottom, 5)
                             
-                            Text(meditationContent)
-                                .font(.body)
-                                .foregroundColor(.white)
-                                .lineSpacing(8)
+                            ForEach(viewModel.meditationParagraphs.indices, id: \.self) { index in
+                                Text(viewModel.meditationParagraphs[index])
+                                    .font(.body)
+                                    .foregroundColor(.white)
+                                    .lineSpacing(8)
+                                    .padding(.bottom, 5)
+                            }
                             
-                            Text("Duration: \(meditationDuration) minutes")
+                            Text("Duration: \(viewModel.meditationDuration) minutes")
                                 .font(.subheadline)
                                 .foregroundColor(.brandMint.opacity(0.8))
                                 .padding(.top, 10)
@@ -136,39 +154,13 @@ struct MeditationView: View {
         .preferredColorScheme(.dark)
     }
     
-    private func generateMeditation() {
-        isLoading = true
-        
-        SupabaseService.shared.generateMeditation(topic: selectedTopic)
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { completion in
-                if case .failure(let error) = completion {
-                    print("Error generating meditation: \(error.localizedDescription)")
-                    // Use fallback content
-                    meditationTitle = "Meditation on \(selectedTopic)"
-                    meditationContent = "Take a deep breath and reflect on God's love. Remember that in all things, God works for the good of those who love him."
-                    meditationDuration = 5
-                }
-                isLoading = false
-            }, receiveValue: { response in
-                meditationTitle = response.title
-                meditationContent = response.content
-                meditationDuration = response.duration
-                progress = 0.0
-                isPlaying = false
-                timer?.invalidate()
-                timer = nil
-            })
-            .store(in: &cancellableHolder.cancellables)
-    }
-    
     private func togglePlayPause() {
         isPlaying.toggle()
         
         if isPlaying {
             // Start the timer
             timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                let totalSeconds = Float(meditationDuration * 60)
+                let totalSeconds = Float(viewModel.meditationDuration * 60)
                 progress += 1.0 / totalSeconds
                 
                 if progress >= 1.0 {

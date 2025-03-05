@@ -65,6 +65,22 @@ struct ContentView: View {
                         Label("Meditation", systemImage: "heart.fill")
                     }
                     .tag(2)
+                    
+                    // Bible Study (Podcast) Tab
+                    NavigationView {
+                        PodcastView()
+                            .navigationBarItems(trailing: Button(action: {
+                                showSettings = true
+                            }) {
+                                Image(systemName: "gear")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.brandMint)
+                            })
+                    }
+                    .tabItem {
+                        Label("Bible Study", systemImage: "book.fill")
+                    }
+                    .tag(3)
                 }
                 .sheet(isPresented: $showSettings) {
                     SettingsView(preferences: preferences)

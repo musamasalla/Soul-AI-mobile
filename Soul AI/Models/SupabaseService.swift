@@ -111,6 +111,109 @@ class SupabaseService {
             .decode(type: MeditationResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }
+    
+    func generateMeditationWithMood(requestBody: [String: Any]) -> AnyPublisher<MeditationResponseWithParagraphs, Error> {
+        guard let url = URL(string: SupabaseConfig.meditationEndpoint) else {
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode) else {
+                    throw URLError(.badServerResponse)
+                }
+                return data
+            }
+            .decode(type: MeditationResponseWithParagraphs.self, decoder: JSONDecoder())
+            .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Podcast API
+    
+    func fetchPodcasts() -> AnyPublisher<[PodcastEntry], Error> {
+        guard let url = URL(string: "\(SupabaseConfig.supabaseUrl)/rest/v1/podcasts?select=*&order=created_at.desc") else {
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Add additional headers for Supabase REST API
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode) else {
+                    throw URLError(.badServerResponse)
+                }
+                return data
+            }
+            .decode(type: [PodcastEntry].self, decoder: decoder)
+            .eraseToAnyPublisher()
+    }
+    
+    func generateBibleStudy(bibleChapter: String) -> AnyPublisher<PodcastEntry, Error> {
+        guard let url = URL(string: SupabaseConfig.podcastEndpoint) else {
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Create request body
+        let body: [String: Any] = [
+            "bibleChapter": bibleChapter
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode) else {
+                    throw URLError(.badServerResponse)
+                }
+                return data
+            }
+            .decode(type: PodcastEntry.self, decoder: decoder)
+            .eraseToAnyPublisher()
+    }
 }
 
 // MARK: - Response Models
@@ -127,4 +230,11 @@ struct MeditationResponse: Codable {
     let title: String
     let content: String
     let duration: Int
+}
+
+struct MeditationResponseWithParagraphs: Codable {
+    let title: String
+    let content: String
+    let duration: Int
+    let paragraphs: [String]?
 } 
