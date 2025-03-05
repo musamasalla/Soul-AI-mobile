@@ -148,11 +148,12 @@ class SupabaseService {
             .map { response in
                 // Add default duration if not provided
                 let duration = 10
+                // No need to modify content or paragraphs as they're already handled in the decoder
                 return MeditationResponseWithParagraphs(
                     title: response.title,
-                    content: response.content.joined(separator: "\n"),
+                    content: response.content,
                     duration: duration,
-                    paragraphs: response.content
+                    paragraphs: response.paragraphs
                 )
             }
             .eraseToAnyPublisher()
