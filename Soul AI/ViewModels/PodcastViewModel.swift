@@ -15,6 +15,8 @@ class PodcastViewModel: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     private var audioPlayer: AVPlayer?
+    private var pollingTimer: Timer?
+    private var pendingPodcastIds: Set<String> = []
     
     // Get available books based on selected testament
     var availableBooks: [BibleStructure.Book] {
@@ -36,6 +38,10 @@ class PodcastViewModel: ObservableObject {
         loadPodcasts()
     }
     
+    deinit {
+        stopPolling()
+    }
+    
     func loadPodcasts() {
         isLoading = true
         errorMessage = nil
@@ -55,6 +61,17 @@ class PodcastViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 self.podcasts = podcasts
+                
+                // Check if there are any podcasts in generating status
+                let generatingPodcasts = podcasts.filter { $0.status == .generating }
+                if !generatingPodcasts.isEmpty {
+                    // Add their IDs to pending list
+                    for podcast in generatingPodcasts {
+                        self.pendingPodcastIds.insert(podcast.id)
+                    }
+                    // Start polling if we have pending podcasts
+                    self.startPolling()
+                }
             })
             .store(in: &cancellables)
     }
@@ -88,7 +105,19 @@ class PodcastViewModel: ObservableObject {
                 
                 if case .failure(let error) = completion {
                     print("Error generating podcast: \(error.localizedDescription)")
-                    self.errorMessage = "Failed to generate Bible study. Please try again."
+                    
+                    // Provide more specific error messages based on error type
+                    let errorMsg: String
+                    if let urlError = error as? URLError, urlError.code == .timedOut {
+                        errorMsg = "The request timed out. The Bible study generation is taking longer than expected. Please try again later."
+                    } else if let nsError = error as? NSError, nsError.domain == NSURLErrorDomain && nsError.code == -1001 {
+                        // -1001 is also a timeout error
+                        errorMsg = "The request timed out. The Bible study generation is taking longer than expected. Please try again later."
+                    } else {
+                        errorMsg = "Failed to generate Bible study. Please try again."
+                    }
+                    
+                    self.errorMessage = errorMsg
                     
                     // Remove the temporary podcast
                     self.podcasts.removeAll { $0.id == tempId }
@@ -117,6 +146,85 @@ class PodcastViewModel: ObservableObject {
                 
                 // Add the new podcast to the list
                 self.podcasts.insert(podcast, at: 0)
+                
+                // If the podcast is still generating, add it to pending list and start polling
+                if podcast.status == .generating {
+                    self.pendingPodcastIds.insert(podcast.id)
+                    self.startPolling()
+                }
+            })
+            .store(in: &cancellables)
+    }
+    
+    // Start polling for updates to pending podcasts
+    private func startPolling() {
+        // Stop any existing polling
+        stopPolling()
+        
+        // Only start polling if we have pending podcasts
+        guard !pendingPodcastIds.isEmpty else { return }
+        
+        // Create a timer that polls every 5 seconds
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.checkPendingPodcasts()
+        }
+    }
+    
+    // Stop polling
+    private func stopPolling() {
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+    }
+    
+    // Check for updates to pending podcasts
+    private func checkPendingPodcasts() {
+        guard !pendingPodcastIds.isEmpty else {
+            stopPolling()
+            return
+        }
+        
+        // Fetch the latest podcast data
+        SupabaseService.shared.fetchPodcasts()
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("Error checking pending podcasts: \(error.localizedDescription)")
+                    // Don't stop polling on error, we'll try again
+                }
+            }, receiveValue: { [weak self] podcasts in
+                guard let self = self else { return }
+                
+                // Update our podcast list
+                self.podcasts = podcasts
+                
+                // Check if any pending podcasts are now complete
+                var stillPending = false
+                var completedIds = Set<String>()
+                
+                for id in self.pendingPodcastIds {
+                    if let podcast = podcasts.first(where: { $0.id == id }) {
+                        if podcast.status == .ready || podcast.status == .failed {
+                            // This podcast is no longer pending
+                            completedIds.insert(id)
+                        } else {
+                            // Still pending
+                            stillPending = true
+                        }
+                    } else {
+                        // Podcast not found, mark for removal
+                        completedIds.insert(id)
+                    }
+                }
+                
+                // Remove completed podcasts from pending set
+                for id in completedIds {
+                    self.pendingPodcastIds.remove(id)
+                }
+                
+                // If no podcasts are still pending, stop polling
+                if !stillPending {
+                    self.stopPolling()
+                }
             })
             .store(in: &cancellables)
     }
@@ -162,5 +270,6 @@ class PodcastViewModel: ObservableObject {
     func stopPlayback() {
         audioPlayer?.pause()
         isPlaying = false
+        stopPolling()
     }
 } 

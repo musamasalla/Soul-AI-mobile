@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Placeholder Audio to Supabase</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin-bottom: 30px;
+        }
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            line-height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .note {
+            background-color: #fff8e1;
+            padding: 10px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Placeholder Audio to Supabase</h1>
+    
+    <div class="container">
+        <p>We've successfully generated the placeholder audio file using OpenAI's text-to-speech API. Now we need to upload it to your Supabase storage bucket.</p>
+        
+        <div class="note">
+            <strong>Note:</strong> The direct upload from the script failed due to row-level security policies. We'll use the Supabase dashboard instead.
+        </div>
+        
+        <p>The generated audio file is located at:</p>
+        <code>/Users/musamasalla/Documents/Soul AI/placeholder-audio/generating-placeholder.mp3</code>
+    </div>
+    
+    <div class="container">
+        <h2>Upload Instructions</h2>
+        
+        <div class="step">
+            <h3><span class="step-number">1</span> Log in to your Supabase Dashboard</h3>
+            <p>Go to <a href="https://app.supabase.com" target="_blank">https://app.supabase.com</a> and log in to your account.</p>
+        </div>
+        
+        <div class="step">
+            <h3><span class="step-number">2</span> Select your project</h3>
+            <p>Select the "Soul AI" project from your dashboard.</p>
+        </div>
+        
+        <div class="step">
+            <h3><span class="step-number">3</span> Navigate to Storage</h3>
+            <p>In the left sidebar, click on "Storage" to access the storage management interface.</p>
+        </div>
+        
+        <div class="step">
+            <h3><span class="step-number">4</span> Select or Create the "podcasts" Bucket</h3>
+            <p>If the "podcasts" bucket already exists, click on it. If not, create a new bucket named "podcasts":</p>
+            <ol>
+                <li>Click the "New Bucket" button</li>
+                <li>Enter "podcasts" as the bucket name</li>
+                <li>Make sure "Public" is selected for the bucket type</li>
+                <li>Click "Create bucket"</li>
+            </ol>
+        </div>
+        
+        <div class="step">
+            <h3><span class="step-number">5</span> Upload the Placeholder Audio File</h3>
+            <p>Once you're in the "podcasts" bucket:</p>
+            <ol>
+                <li>Click the "Upload" button</li>
+                <li>Select the file from your computer at:<br>
+                <code>/Users/musamasalla/Documents/Soul AI/placeholder-audio/generating-placeholder.mp3</code></li>
+                <li>Make sure to rename the file to <strong>generating-placeholder.mp3</strong> if it's not already named that</li>
+                <li>Click "Upload"</li>
+            </ol>
+        </div>
+        
+        <div class="step">
+            <h3><span class="step-number">6</span> Verify the File is Accessible</h3>
+            <p>After uploading:</p>
+            <ol>
+                <li>Click on the uploaded file in the bucket</li>
+                <li>In the file details panel, you should see a "URL" field</li>
+                <li>Copy this URL and verify it's accessible by pasting it in a new browser tab</li>
+            </ol>
+            <p>The URL should look something like:</p>
+            <code>https://zihuvecrcuaovdiremzw.supabase.co/storage/v1/object/public/podcasts/generating-placeholder.mp3</code>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Next Steps</h2>
+        <p>Once you've uploaded the placeholder audio file, you can proceed with testing the podcast generation feature in your iOS app.</p>
+        <p>The Edge Function has already been updated to use this placeholder file when creating a pending podcast entry.</p>
+    </div>
+</body>
+</html> 

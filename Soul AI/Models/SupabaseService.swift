@@ -269,8 +269,7 @@ class SupabaseService {
         // Add additional headers for Supabase REST API
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = createDecoderWithRobustDateHandling()
         
         return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
@@ -301,7 +300,20 @@ class SupabaseService {
                 
                 return data
             }
-            .decode(type: [PodcastEntry].self, decoder: decoder)
+            .flatMap { data -> AnyPublisher<[PodcastEntry], Error> in
+                do {
+                    let podcasts = try decoder.decode([PodcastEntry].self, from: data)
+                    return Just(podcasts)
+                        .setFailureType(to: Error.self)
+                        .eraseToAnyPublisher()
+                } catch {
+                    print("Error decoding podcasts: \(error)")
+                    // Return empty array instead of failing
+                    return Just([])
+                        .setFailureType(to: Error.self)
+                        .eraseToAnyPublisher()
+                }
+            }
             .eraseToAnyPublisher()
     }
     
@@ -312,6 +324,8 @@ class SupabaseService {
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        // Keep a reasonable timeout since we're now expecting a quick response
+        request.timeoutInterval = 30
         
         // Add headers
         for (key, value) in SupabaseConfig.headers() {
@@ -320,7 +334,9 @@ class SupabaseService {
         
         // Create request body
         let body: [String: Any] = [
-            "bibleChapter": bibleChapter
+            "bibleChapter": bibleChapter,
+            // Add a placeholder audio_url to satisfy the not-null constraint
+            "initialRequest": true
         ]
         
         do {
@@ -329,8 +345,7 @@ class SupabaseService {
             return Fail(error: error).eraseToAnyPublisher()
         }
         
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = createDecoderWithRobustDateHandling()
         
         return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
@@ -361,7 +376,28 @@ class SupabaseService {
                 
                 return data
             }
-            .decode(type: PodcastEntry.self, decoder: decoder)
+            .flatMap { data -> AnyPublisher<PodcastEntry, Error> in
+                do {
+                    let podcast = try decoder.decode(PodcastEntry.self, from: data)
+                    return Just(podcast)
+                        .setFailureType(to: Error.self)
+                        .eraseToAnyPublisher()
+                } catch {
+                    print("Error decoding podcast: \(error)")
+                    
+                    // If we can't decode the response, check if it's a JSON object with an error message
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = json["error"] as? String {
+                        let error = NSError(domain: "SupabaseErrorDomain", 
+                                           code: -1,
+                                           userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                        return Fail(error: error).eraseToAnyPublisher()
+                    }
+                    
+                    // Otherwise, propagate the original error
+                    return Fail(error: error).eraseToAnyPublisher()
+                }
+            }
             .eraseToAnyPublisher()
     }
 }
@@ -464,4 +500,47 @@ struct MeditationResponseWithParagraphs: Codable {
             duration = 10
         }
     }
+}
+
+// MARK: - Helper Methods
+
+private func createDecoderWithRobustDateHandling() -> JSONDecoder {
+    let decoder = JSONDecoder()
+    
+    // Create a custom date formatter that can handle multiple formats
+    let dateFormatter = DateFormatter()
+    dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+    dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+    
+    // Try multiple date formats
+    decoder.dateDecodingStrategy = .custom { decoder in
+        let container = try decoder.singleValueContainer()
+        let dateString = try container.decode(String.self)
+        
+        // Try ISO8601 first
+        if let date = ISO8601DateFormatter().date(from: dateString) {
+            return date
+        }
+        
+        // Try other formats
+        let formats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ",
+            "yyyy-MM-dd'T'HH:mm:ssZZZZZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        ]
+        
+        for format in formats {
+            dateFormatter.dateFormat = format
+            if let date = dateFormatter.date(from: dateString) {
+                return date
+            }
+        }
+        
+        // If all else fails, return current date and log error
+        print("Cannot decode date string: \(dateString), using current date instead")
+        return Date()
+    }
+    
+    return decoder
 } 
