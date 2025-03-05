@@ -6,8 +6,8 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { OpenAI } from 'https://esm.sh/openai@4.0.0'
 
 const openAiKey = Deno.env.get('OPENAI_API_KEY')
-const supabaseUrl = Deno.env.get('SUPABASE_URL')
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const supabaseUrl = Deno.env.get('API_SUPABASE_URL')
+const supabaseServiceKey = Deno.env.get('API_SUPABASE_KEY')
 
 const openai = new OpenAI({
   apiKey: openAiKey
