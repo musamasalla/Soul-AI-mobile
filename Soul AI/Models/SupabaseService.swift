@@ -109,6 +109,11 @@ class SupabaseService {
                 return data
             }
             .decode(type: MeditationResponse.self, decoder: JSONDecoder())
+            .map { response in
+                // Add default duration if not provided
+                let duration = 10
+                return MeditationResponse(title: response.title, content: response.content, duration: duration)
+            }
             .eraseToAnyPublisher()
     }
     
@@ -140,6 +145,16 @@ class SupabaseService {
                 return data
             }
             .decode(type: MeditationResponseWithParagraphs.self, decoder: JSONDecoder())
+            .map { response in
+                // Add default duration if not provided
+                let duration = 10
+                return MeditationResponseWithParagraphs(
+                    title: response.title,
+                    content: response.content.joined(separator: "\n"),
+                    duration: duration,
+                    paragraphs: response.content
+                )
+            }
             .eraseToAnyPublisher()
     }
     
@@ -229,7 +244,33 @@ struct InspirationResponse: Codable {
 struct MeditationResponse: Codable {
     let title: String
     let content: String
-    let duration: Int
+    var duration: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case content
+        case duration
+    }
+    
+    init(title: String, content: String, duration: Int) {
+        self.title = title
+        self.content = content
+        self.duration = duration
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        content = try container.decode(String.self, forKey: .content)
+        
+        // Try to decode duration, but use a default value if it's not present
+        if let decodedDuration = try? container.decode(Int.self, forKey: .duration) {
+            duration = decodedDuration
+        } else {
+            // Default duration (10 minutes)
+            duration = 10
+        }
+    }
 }
 
 struct MeditationResponseWithParagraphs: Codable {
@@ -237,4 +278,46 @@ struct MeditationResponseWithParagraphs: Codable {
     let content: String
     let duration: Int
     let paragraphs: [String]?
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case content
+        case duration
+        case paragraphs
+    }
+    
+    init(title: String, content: String, duration: Int, paragraphs: [String]?) {
+        self.title = title
+        self.content = content
+        self.duration = duration
+        self.paragraphs = paragraphs
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        
+        // Handle content as either a string or an array of strings
+        if let contentString = try? container.decode(String.self, forKey: .content) {
+            content = contentString
+            paragraphs = nil
+        } else if let contentArray = try? container.decode([String].self, forKey: .content) {
+            content = contentArray.joined(separator: "\n")
+            paragraphs = contentArray
+        } else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .content,
+                in: container,
+                debugDescription: "Expected String or [String] for content"
+            )
+        }
+        
+        // Try to decode duration, but use a default value if it's not present
+        if let decodedDuration = try? container.decode(Int.self, forKey: .duration) {
+            duration = decodedDuration
+        } else {
+            // Default duration (10 minutes)
+            duration = 10
+        }
+    }
 } 

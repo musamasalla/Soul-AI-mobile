@@ -8,6 +8,7 @@ struct PodcastEntry: Identifiable, Codable {
     let audioUrl: String?
     let status: PodcastStatus
     let createdAt: Date
+    let updatedAt: Date?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -17,6 +18,7 @@ struct PodcastEntry: Identifiable, Codable {
         case audioUrl = "audio_url"
         case status
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
     
     init(id: String, title: String, description: String, chapter: String, audioUrl: String?, status: PodcastStatus, createdAt: Date) {
@@ -27,6 +29,7 @@ struct PodcastEntry: Identifiable, Codable {
         self.audioUrl = audioUrl
         self.status = status
         self.createdAt = createdAt
+        self.updatedAt = nil
     }
     
     init(from decoder: Decoder) throws {
@@ -54,6 +57,7 @@ struct PodcastEntry: Identifiable, Codable {
         }
         
         createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
     }
 }
 
