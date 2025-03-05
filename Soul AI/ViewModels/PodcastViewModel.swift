@@ -244,7 +244,14 @@ class PodcastViewModel: ObservableObject {
     }
     
     func playPodcast(podcast: PodcastEntry) {
-        guard let audioUrl = podcast.audioUrl, let url = URL(string: audioUrl) else {
+        guard let audioUrl = podcast.audioUrl else {
+            return
+        }
+        
+        // Fix double slash issue in URL
+        let fixedAudioUrl = audioUrl.replacingOccurrences(of: "podcasts//", with: "podcasts/")
+        
+        guard let url = URL(string: fixedAudioUrl) else {
             return
         }
         
