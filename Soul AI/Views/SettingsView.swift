@@ -9,13 +9,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.brandBackground.edgesIgnoringSafeArea(.all)
+                Color.AppTheme.background.edgesIgnoringSafeArea(.all)
                 
                 Form {
                     Section(header: Text("Profile").foregroundColor(Color.brandMint)) {
                         HStack {
                             Text("Name")
-                                .foregroundColor(.primaryText)
+                                .foregroundColor(Color.AppTheme.primaryText)
                             Spacer()
                             TextField("Your name", text: $username)
                                 .multilineTextAlignment(.trailing)
@@ -30,7 +30,7 @@ struct SettingsView: View {
                     Section(header: Text("Subscription").foregroundColor(Color.brandMint)) {
                         HStack {
                             Text("Current Plan")
-                                .foregroundColor(.primaryText)
+                                .foregroundColor(Color.AppTheme.primaryText)
                             Spacer()
                             Text(preferences.subscriptionTier.rawValue.capitalized)
                                 .foregroundColor(Color.brandMint.opacity(0.8))
@@ -39,7 +39,7 @@ struct SettingsView: View {
                         if preferences.subscriptionTier != .free, let expiryDate = preferences.subscriptionExpiryDate {
                             HStack {
                                 Text("Renews")
-                                    .foregroundColor(.primaryText)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                                 Spacer()
                                 Text(expiryDate, style: .date)
                                     .foregroundColor(Color.brandMint.opacity(0.8))
@@ -49,17 +49,17 @@ struct SettingsView: View {
                         NavigationLink(destination: SubscriptionView()) {
                             if preferences.subscriptionTier == .free {
                                 Text("Upgrade to Premium")
-                                    .foregroundColor(.primaryText)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                             } else {
                                 Text("Manage Subscription")
-                                    .foregroundColor(.primaryText)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                             }
                         }
                     }
                     
                     Section(header: Text("Appearance").foregroundColor(Color.brandMint)) {
                         Toggle("Dark Mode", isOn: $preferences.isDarkMode)
-                            .foregroundColor(.primaryText)
+                            .foregroundColor(Color.AppTheme.primaryText)
                             .tint(Color.brandMint)
                         
                         Picker("Font Size", selection: $preferences.fontSize) {
@@ -67,14 +67,14 @@ struct SettingsView: View {
                                 Text(size.rawValue).tag(size)
                             }
                         }
-                        .foregroundColor(.primaryText)
+                        .foregroundColor(Color.AppTheme.primaryText)
                         .accentColor(Color.brandMint)
                     }
                     
                     Section(header: Text("About").foregroundColor(Color.brandMint)) {
                         HStack {
                             Text("Version")
-                                .foregroundColor(.primaryText)
+                                .foregroundColor(Color.AppTheme.primaryText)
                             Spacer()
                             Text("1.0.0")
                                 .foregroundColor(Color.brandMint.opacity(0.8))
@@ -82,12 +82,12 @@ struct SettingsView: View {
                         
                         NavigationLink(destination: PrivacyPolicyView()) {
                             Text("Privacy Policy")
-                                .foregroundColor(.primaryText)
+                                .foregroundColor(Color.AppTheme.primaryText)
                         }
                         
                         NavigationLink(destination: TermsOfServiceView()) {
                             Text("Terms of Service")
-                                .foregroundColor(.primaryText)
+                                .foregroundColor(Color.AppTheme.primaryText)
                         }
                     }
                     
@@ -107,7 +107,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(preferences.isDarkMode ? .dark : .light, for: .navigationBar)
-            .toolbarBackground(Color.brandBackground, for: .navigationBar)
+            .toolbarBackground(Color.AppTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .navigationBarItems(trailing: Button("Done") {
                 presentationMode.wrappedValue.dismiss()
@@ -134,37 +134,37 @@ struct PrivacyPolicyView: View {
                     .foregroundColor(Color.brandMint)
                 
                 Text("Soul AI is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our application.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Text("Information We Collect")
                     .font(.headline)
                     .foregroundColor(Color.brandMint)
                 
                 Text("We collect information you provide directly to us when you use the app, including your conversations with the AI assistant. These conversations are used to improve the quality of responses and provide personalized assistance.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Text("How We Use Your Information")
                     .font(.headline)
                     .foregroundColor(Color.brandMint)
                 
                 Text("We use the information we collect to provide, maintain, and improve our services, develop new features, and protect our users.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Text("Data Security")
                     .font(.headline)
                     .foregroundColor(Color.brandMint)
                 
                 Text("We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
             }
             .padding()
         }
         .navigationTitle("Privacy Policy")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(preferences.isDarkMode ? .dark : .light, for: .navigationBar)
-        .toolbarBackground(Color.brandBackground, for: .navigationBar)
+        .toolbarBackground(Color.AppTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .background(Color.brandBackground)
+        .background(Color.AppTheme.background)
     }
 }
 
@@ -181,37 +181,37 @@ struct TermsOfServiceView: View {
                     .foregroundColor(Color.brandMint)
                 
                 Text("By using Soul AI, you agree to these terms. Please read them carefully.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Text("Acceptable Use")
                     .font(.headline)
                     .foregroundColor(Color.brandMint)
                 
                 Text("You agree to use Soul AI only for lawful purposes and in accordance with these Terms. You agree not to use Soul AI for any illegal or unauthorized purpose.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Text("Content Responsibility")
                     .font(.headline)
                     .foregroundColor(Color.brandMint)
                 
                 Text("You are responsible for all content you submit to Soul AI. The app is designed to provide Christian guidance, but responses should not replace professional advice from qualified religious leaders, counselors, or healthcare providers.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Text("Intellectual Property")
                     .font(.headline)
                     .foregroundColor(Color.brandMint)
                 
                 Text("Soul AI and its original content, features, and functionality are owned by the app developers and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.")
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
             }
             .padding()
         }
         .navigationTitle("Terms of Service")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(preferences.isDarkMode ? .dark : .light, for: .navigationBar)
-        .toolbarBackground(Color.brandBackground, for: .navigationBar)
+        .toolbarBackground(Color.AppTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .background(Color.brandBackground)
+        .background(Color.AppTheme.background)
     }
 }
 

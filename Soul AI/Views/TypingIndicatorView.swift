@@ -13,7 +13,7 @@ struct TypingIndicatorView: View {
                     .foregroundColor(Color.brandMint)
                     .font(.system(size: 16))
                     .frame(width: 24, height: 24)
-                    .background(Circle().fill(Color.brandBackground))
+                    .background(Circle().fill(Color.AppTheme.background))
                     .overlay(
                         Circle()
                             .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
@@ -50,7 +50,7 @@ struct TypingIndicatorView: View {
             .padding(.horizontal)
             .padding(.vertical, 10)
         }
-        .background(Color.brandBackground)
+        .background(Color.AppTheme.background)
         .onAppear {
             animateDots()
         }

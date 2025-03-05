@@ -1,100 +1,140 @@
 import SwiftUI
+import UIKit
 
 struct DailyInspirationView: View {
-    @StateObject private var viewModel = ChatViewModel()
-    @State private var inspiration: String = "Loading today's inspiration..."
-    @State private var isLoading: Bool = true
     @EnvironmentObject private var preferences: UserPreferences
+    @StateObject private var viewModel = DailyInspirationViewModel()
+    @State private var showShareSheet = false
+    @State private var showingSettings = false
     
     var body: some View {
-        ZStack {
-            // Background
-            Color.brandBackground
-                .ignoresSafeArea()
-            
-            VStack(spacing: 30) {
-                // Header
-                Text("Daily Inspiration")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.brandMint)
-                    .padding(.top, 20)
+        NavigationView {
+            ZStack {
+                Color.AppTheme.background.edgesIgnoringSafeArea(.all)
                 
-                Spacer()
-                
-                // Inspiration card
                 VStack(spacing: 20) {
-                    if isLoading {
+                    if viewModel.isLoading {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .brandMint))
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color.brandMint))
                             .scaleEffect(1.5)
+                            .padding(.top, 100)
                     } else {
-                        // Cross icon
-                        Image(systemName: "cross.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.brandMint)
-                        
-                        // Inspiration text
-                        Text(inspiration)
-                            .font(.system(size: 20))
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.primaryText)
-                            .padding()
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 20) {
+                                Text("Daily Inspiration")
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundColor(Color.brandMint)
+                                    .padding(.top, 20)
+                                
+                                Text(viewModel.currentDate)
+                                    .font(.subheadline)
+                                    .foregroundColor(Color.AppTheme.secondaryText)
+                                
+                                Divider()
+                                    .background(Color.brandMint.opacity(0.5))
+                                
+                                Text(viewModel.inspiration.verse)
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundColor(Color.AppTheme.primaryText)
+                                    .padding(.vertical, 10)
+                                    .lineSpacing(6)
+                                
+                                Text(viewModel.inspiration.reference)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Color.brandMint)
+                                
+                                Divider()
+                                    .background(Color.brandMint.opacity(0.5))
+                                    .padding(.vertical, 10)
+                                
+                                Text(viewModel.inspiration.reflection)
+                                    .font(.system(size: 18))
+                                    .foregroundColor(Color.AppTheme.primaryText)
+                                    .lineSpacing(6)
+                                
+                                Text("Prayer")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(Color.brandMint)
+                                    .padding(.top, 20)
+                                
+                                Text(viewModel.inspiration.prayer)
+                                    .font(.system(size: 18, weight: .regular, design: .serif))
+                                    .italic()
+                                    .foregroundColor(Color.AppTheme.primaryText)
+                                    .lineSpacing(6)
+                                    .padding(.bottom, 30)
+                                
+                                HStack {
+                                    Spacer()
+                                    Button(action: {
+                                        showShareSheet = true
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "square.and.arrow.up")
+                                                .font(.system(size: 16, weight: .semibold))
+                                            Text("Share")
+                                                .font(.system(size: 16, weight: .semibold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 10)
+                                        .background(Color.brandMint)
+                                        .cornerRadius(20)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.bottom, 20)
+                            }
+                            .padding(.horizontal)
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-                .padding(.horizontal, 20)
-                .background(Color.cardBackground)
-                .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
-                )
-                .padding(.horizontal, 20)
-                
-                Spacer()
-                
-                // Share button
-                Button(action: {
-                    // Share functionality
-                    let activityVC = UIActivityViewController(activityItems: [inspiration], applicationActivities: nil)
-                    
-                    // Present the activity view controller
-                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let rootViewController = windowScene.windows.first?.rootViewController {
-                        rootViewController.present(activityVC, animated: true, completion: nil)
-                    }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(preferences.isDarkMode ? .dark : .light, for: .navigationBar)
+            .toolbarBackground(Color.AppTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .navigationBarItems(
+                trailing: Button(action: {
+                    showingSettings = true
                 }) {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16))
-                        
-                        Text("Share Inspiration")
-                            .font(.headline)
-                    }
-                    .foregroundColor(.black)
-                    .padding(.horizontal, 30)
-                    .padding(.vertical, 12)
-                    .background(Color.brandMint)
-                    .cornerRadius(30)
+                    Image(systemName: "gearshape.fill")
+                        .foregroundColor(Color.brandMint)
                 }
-                .padding(.bottom, 30)
-                
-                Spacer()
+            )
+            .sheet(isPresented: $showingSettings) {
+                SettingsView(preferences: preferences)
+                    .environmentObject(preferences)
+            }
+            .sheet(isPresented: $showShareSheet) {
+                ShareSheet(activityItems: [viewModel.shareText])
+            }
+            .onAppear {
+                viewModel.loadInspiration()
             }
         }
         .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
-        .onAppear {
-            // Simulate loading an inspiration
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                inspiration = "\"Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.\" - Proverbs 3:5-6"
-                isLoading = false
-            }
-        }
     }
 }
 
-#Preview {
-    DailyInspirationView()
-        .environmentObject(UserPreferences())
+struct ShareSheet: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    var applicationActivities: [UIActivity]? = nil
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: applicationActivities
+        )
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+struct DailyInspirationView_Previews: PreviewProvider {
+    static var previews: some View {
+        DailyInspirationView()
+            .environmentObject(UserPreferences())
+    }
 } 

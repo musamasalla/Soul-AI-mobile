@@ -10,7 +10,7 @@ struct ChatView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.brandBackground
+            Color.AppTheme.background
                 .ignoresSafeArea()
             
             // Main chat view
@@ -46,7 +46,7 @@ struct ChatView: View {
                         }
                     }
                 }
-                .background(Color.brandBackground)
+                .background(Color.AppTheme.background)
                 
                 // Input area
                 inputArea
@@ -111,7 +111,7 @@ struct ChatView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color.brandBackground)
+        .background(Color.AppTheme.background)
         .shadow(color: Color.brandMint.opacity(0.2), radius: 5, x: 0, y: 2)
     }
     
@@ -124,8 +124,8 @@ struct ChatView: View {
                 // Text input field
                 TextField("Message Soul AI...", text: $viewModel.inputMessage, axis: .vertical)
                     .padding(12)
-                    .background(Color.inputBackground)
-                    .foregroundColor(.primaryText)
+                    .background(Color.AppTheme.inputBackground)
+                    .foregroundColor(Color.AppTheme.primaryText)
                     .cornerRadius(20)
                     .focused($isInputFocused)
                     .lineLimit(5)
@@ -148,7 +148,7 @@ struct ChatView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.brandBackground)
+            .background(Color.AppTheme.background)
         }
     }
     
@@ -157,15 +157,15 @@ struct ChatView: View {
             // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(Color.AppTheme.secondaryText)
                 
                 Text("Search")
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(Color.AppTheme.secondaryText)
                 
                 Spacer()
             }
             .padding()
-            .background(Color.inputBackground)
+            .background(Color.AppTheme.inputBackground)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -179,7 +179,7 @@ struct ChatView: View {
                     .font(.system(size: 24))
                     .foregroundColor(Color.brandMint)
                     .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.brandBackground))
+                    .background(Circle().fill(Color.AppTheme.background))
                 
                 Text("Soul AI")
                     .font(.headline)
@@ -189,7 +189,7 @@ struct ChatView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(Color.cardBackground)
+            .background(Color.AppTheme.cardBackground)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -246,7 +246,7 @@ struct ChatView: View {
                     )
                 
                 Text(preferences.userName)
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Spacer()
                 
@@ -260,7 +260,7 @@ struct ChatView: View {
             }
             .padding()
         }
-        .background(Color.brandBackground)
+        .background(Color.AppTheme.background)
         .edgesIgnoringSafeArea(.vertical)
     }
     
@@ -268,12 +268,12 @@ struct ChatView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(days)
                 .font(.caption)
-                .foregroundColor(.secondaryText)
+                .foregroundColor(Color.AppTheme.secondaryText)
                 .padding(.horizontal)
             
             HStack {
                 Text(title)
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                     .lineLimit(1)
                 
                 Spacer()

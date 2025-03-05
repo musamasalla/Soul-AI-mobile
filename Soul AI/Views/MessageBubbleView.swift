@@ -17,7 +17,7 @@ struct MessageBubbleView: View {
                             .foregroundColor(Color.brandMint.opacity(0.7))
                         
                         Text(message.content)
-                            .foregroundColor(.primaryText)
+                            .foregroundColor(Color.AppTheme.primaryText)
                     }
                     
                     Spacer()
@@ -34,7 +34,7 @@ struct MessageBubbleView: View {
                             .foregroundColor(Color.brandMint.opacity(0.7))
                         
                         Text(message.content)
-                            .foregroundColor(.primaryText)
+                            .foregroundColor(Color.AppTheme.primaryText)
                             .multilineTextAlignment(.trailing)
                     }
                     
@@ -45,8 +45,8 @@ struct MessageBubbleView: View {
             }
         }
         .background(message.role == .assistant ? 
-                    Color.brandBackground : 
-                    Color.cardBackground)
+                    Color.AppTheme.background : 
+                    Color.AppTheme.cardBackground)
     }
     
     private var assistantIcon: some View {
@@ -54,7 +54,7 @@ struct MessageBubbleView: View {
             .foregroundColor(Color.brandMint)
             .font(.system(size: 16))
             .frame(width: 24, height: 24)
-            .background(Circle().fill(Color.brandBackground))
+            .background(Circle().fill(Color.AppTheme.background))
             .overlay(
                 Circle()
                     .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)

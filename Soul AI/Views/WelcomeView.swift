@@ -9,7 +9,7 @@ struct WelcomeView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.brandBackground
+            Color.AppTheme.background
                 .ignoresSafeArea()
             
             VStack(spacing: 30) {
@@ -56,8 +56,8 @@ struct WelcomeView: View {
                     
                     TextField("Enter your name", text: $username)
                         .padding()
-                        .background(Color.inputBackground)
-                        .foregroundColor(.primaryText)
+                        .background(Color.AppTheme.inputBackground)
+                        .foregroundColor(Color.AppTheme.primaryText)
                         .cornerRadius(10)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
@@ -71,7 +71,7 @@ struct WelcomeView: View {
                 Toggle("Dark Mode", isOn: $preferences.isDarkMode)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 20)
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(Color.AppTheme.primaryText)
                     .tint(.brandMint)
                 
                 // Get started button
@@ -117,7 +117,7 @@ struct WelcomeView: View {
                 
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(Color.AppTheme.secondaryText)
             }
         }
     }
