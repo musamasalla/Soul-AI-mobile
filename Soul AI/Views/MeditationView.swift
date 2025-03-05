@@ -109,7 +109,7 @@ struct MeditationView: View {
                                             .foregroundColor(
                                                 viewModel.selectedTopic == topic ?
                                                 .black :
-                                                .white
+                                                Color.AppTheme.primaryText
                                             )
                                             .cornerRadius(20)
                                     }
@@ -164,7 +164,7 @@ struct MeditationView: View {
                         
                         Text(meditation.content)
                             .font(.body)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                             .lineSpacing(6)
                             .padding()
                             .background(Color(.systemGray6).opacity(0.3))
@@ -283,7 +283,7 @@ struct MeditationView: View {
                                             .foregroundColor(
                                                 viewModel.selectedTopic == topic ?
                                                 .black :
-                                                .white
+                                                Color.AppTheme.primaryText
                                             )
                                             .cornerRadius(20)
                                     }
@@ -330,7 +330,7 @@ struct MeditationView: View {
                         
                         Text(meditation.content)
                             .font(.body)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                             .lineSpacing(6)
                             .padding()
                             .background(Color(.systemGray6).opacity(0.3))
@@ -373,7 +373,7 @@ struct ParagraphCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text)
                 .font(.body)
-                .foregroundColor(.white)
+                .foregroundColor(Color.AppTheme.primaryText)
                 .lineSpacing(8)
                 .fixedSize(horizontal: false, vertical: true)
         }

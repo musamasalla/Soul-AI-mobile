@@ -16,7 +16,7 @@ class PodcastViewModel: ObservableObject {
     
     @Published var selectedTopic: String = "Faith"
     @Published var scriptureReferences: String = ""
-    @Published var podcastDuration: Int = 15
+    @Published var podcastDuration: Int = 15  // Restore default to 15 minutes for premium podcasts
     @Published var podcast: Podcast?
     @Published var showPodcast: Bool = false
     
@@ -90,7 +90,7 @@ class PodcastViewModel: ObservableObject {
         // Create request body
         let requestBody: [String: Any] = [
             "topic": selectedTopic,
-            "duration": 5 // Basic podcasts are fixed at 5 minutes
+            "duration": 5 // Basic podcasts can range from 1-5 minutes, controlled by the backend
         ]
         
         SupabaseService.shared.generatePremiumPodcast(requestBody: requestBody)
@@ -124,7 +124,7 @@ class PodcastViewModel: ObservableObject {
                 self.podcast = Podcast(
                     title: title,
                     content: response.content,
-                    duration: response.duration > 0 ? response.duration : 5
+                    duration: 5 // Fixed at 5 minutes for free Bible studies
                 )
                 
                 self.showPodcast = true
@@ -145,7 +145,7 @@ class PodcastViewModel: ObservableObject {
         // Create request body with all premium options
         var requestBody: [String: Any] = [
             "topic": selectedTopic,
-            "duration": podcastDuration,
+            "duration": podcastDuration, // Use variable duration for premium podcasts
             "isPremium": true
         ]
         
@@ -162,7 +162,7 @@ class PodcastViewModel: ObservableObject {
             // Create a mock podcast based on user inputs
             let mockTitle = "The Christian Journey: \(self.selectedTopic)"
             
-            var mockContent = "# Introduction (2 minutes)\n\nWelcome to \"The Christian Journey,\" where we explore faith in everyday life. I'm your host, and today we're diving into the topic of \(self.selectedTopic). "
+            var mockContent = "# Introduction (\(Int(Double(self.podcastDuration) * 0.2)) minutes)\n\nWelcome to \"The Christian Journey,\" where we explore faith in everyday life. I'm your host, and today we're diving into the topic of \(self.selectedTopic). "
             
             if !self.scriptureReferences.isEmpty {
                 mockContent += "We'll be reflecting on \(self.scriptureReferences) and how these scriptures guide us in our understanding of \(self.selectedTopic).\n\n"
@@ -170,7 +170,7 @@ class PodcastViewModel: ObservableObject {
                 mockContent += "We'll be exploring what the Bible teaches us about \(self.selectedTopic) and how we can apply these teachings in our daily lives.\n\n"
             }
             
-            mockContent += "# Main Content (\(Int(Double(self.podcastDuration) * 0.7)) minutes)\n\n"
+            mockContent += "# Main Content (\(Int(Double(self.podcastDuration) * 0.6)) minutes)\n\n"
             mockContent += "## Understanding \(self.selectedTopic) from a Biblical Perspective\n\n"
             mockContent += "When we think about \(self.selectedTopic) in the context of our faith, we must consider how God views this aspect of our lives. "
             mockContent += "The Bible provides us with guidance through various passages and stories that illuminate God's perspective on \(self.selectedTopic).\n\n"
@@ -237,7 +237,7 @@ class PodcastViewModel: ObservableObject {
                 self.podcast = Podcast(
                     title: title,
                     content: podcast.content,
-                    duration: podcast.duration > 0 ? podcast.duration : 5
+                    duration: podcast.duration > 0 ? podcast.duration : self.podcastDuration
                 )
                 
                 self.showPodcast = true

@@ -13,7 +13,6 @@ struct PodcastView: View {
     @State private var showingSettings = false
     @State private var showingScriptureSelector = false
     @State private var showingTopicSelector = false
-    @State private var showingDurationSelector = false
     
     var body: some View {
         NavigationView {
@@ -22,267 +21,14 @@ struct PodcastView: View {
                 
                 VStack {
                     if viewModel.showPodcast {
-                        // Podcast player view
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 20) {
-                                Text(viewModel.podcast?.title ?? "Podcast")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(Color.AppTheme.primaryText)
-                                    .padding(.top)
-                                
-                                // Player controls
-                                HStack {
-                                    Button(action: {
-                                        if viewModel.isPlaying {
-                                            viewModel.stopPlayback()
-                                        } else {
-                                            if let podcast = viewModel.podcast {
-                                                viewModel.playPodcast(podcast)
-                                            }
-                                        }
-                                    }) {
-                                        Image(systemName: viewModel.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                            .font(.system(size: 50))
-                                            .foregroundColor(Color.brandMint)
-                                    }
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text("Duration: \(viewModel.podcast?.duration ?? 0) min")
-                                            .font(.subheadline)
-                                            .foregroundColor(Color.AppTheme.secondaryText)
-                                        
-                                        if let date = viewModel.podcast?.createdAt {
-                                            Text("Created: \(date.formatted(date: .abbreviated, time: .shortened))")
-                                                .font(.subheadline)
-                                                .foregroundColor(Color.AppTheme.secondaryText)
-                                        }
-                                    }
-                                    
-                                    Spacer()
-                                }
-                                .padding(.vertical)
-                                
-                                Divider()
-                                    .background(Color.brandMint.opacity(0.5))
-                                
-                                Text("Content")
-                                    .font(.headline)
-                                    .foregroundColor(Color.brandMint)
-                                
-                                Text(viewModel.podcast?.content ?? "")
-                                    .font(.body)
-                                    .foregroundColor(Color.AppTheme.primaryText)
-                                    .lineSpacing(6)
-                                
-                                if !viewModel.scriptureReferences.isEmpty {
-                                    Divider()
-                                        .background(Color.brandMint.opacity(0.5))
-                                        .padding(.vertical)
-                                    
-                                    Text("Scripture References")
-                                        .font(.headline)
-                                        .foregroundColor(Color.brandMint)
-                                    
-                                    ForEach(viewModel.scriptureReferences, id: \.self) { reference in
-                                        Text(reference)
-                                            .font(.subheadline)
-                                            .foregroundColor(Color.AppTheme.primaryText)
-                                            .padding(.vertical, 2)
-                                    }
-                                }
-                                
-                                Spacer(minLength: 40)
-                                
-                                Button(action: {
-                                    viewModel.showPodcast = false
-                                }) {
-                                    Text("Generate New Podcast")
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                        .padding()
-                                        .frame(maxWidth: .infinity)
-                                        .background(Color.brandMint)
-                                        .cornerRadius(10)
-                                }
-                            }
-                            .padding()
-                        }
+                        PodcastPlayerView(viewModel: viewModel)
                     } else {
-                        // Podcast generator view
-                        ScrollView {
-                            VStack(spacing: 25) {
-                                Text("Generate a Podcast")
-                                    .font(.system(size: 28, weight: .bold))
-                                    .foregroundColor(Color.brandMint)
-                                    .padding(.top)
-                                
-                                // Topic selector
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Topic")
-                                        .font(.headline)
-                                        .foregroundColor(Color.AppTheme.primaryText)
-                                    
-                                    Button(action: {
-                                        showingTopicSelector = true
-                                    }) {
-                                        HStack {
-                                            Text(viewModel.selectedTopic.isEmpty ? "Select a topic" : viewModel.selectedTopic)
-                                                .foregroundColor(viewModel.selectedTopic.isEmpty ? Color.AppTheme.secondaryText : Color.AppTheme.primaryText)
-                                            
-                                            Spacer()
-                                            
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(Color.AppTheme.secondaryText)
-                                        }
-                                        .padding()
-                                        .background(Color.AppTheme.cardBackground)
-                                        .cornerRadius(10)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
-                                        )
-                                    }
-                                }
-                                .padding(.horizontal)
-                                
-                                // Duration selector
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Duration")
-                                        .font(.headline)
-                                        .foregroundColor(Color.AppTheme.primaryText)
-                                    
-                                    Button(action: {
-                                        showingDurationSelector = true
-                                    }) {
-                                        HStack {
-                                            Text("\(viewModel.podcastDuration) minutes")
-                                                .foregroundColor(Color.AppTheme.primaryText)
-                                            
-                                            Spacer()
-                                            
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(Color.AppTheme.secondaryText)
-                                        }
-                                        .padding()
-                                        .background(Color.AppTheme.cardBackground)
-                                        .cornerRadius(10)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
-                                        )
-                                    }
-                                }
-                                .padding(.horizontal)
-                                
-                                // Scripture reference selector (for premium)
-                                if preferences.subscriptionTier != .free {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack {
-                                            Text("Scripture Reference")
-                                                .font(.headline)
-                                                .foregroundColor(Color.AppTheme.primaryText)
-                                            
-                                            Text("(Premium)")
-                                                .font(.caption)
-                                                .foregroundColor(Color.brandMint)
-                                        }
-                                        
-                                        Button(action: {
-                                            showingScriptureSelector = true
-                                        }) {
-                                            HStack {
-                                                if viewModel.selectedTestament.isEmpty || viewModel.selectedBook.isEmpty || viewModel.selectedChapter.isEmpty {
-                                                    Text("Select scripture")
-                                                        .foregroundColor(Color.AppTheme.secondaryText)
-                                                } else {
-                                                    Text("\(viewModel.selectedBook) \(viewModel.selectedChapter)")
-                                                        .foregroundColor(Color.AppTheme.primaryText)
-                                                }
-                                                
-                                                Spacer()
-                                                
-                                                Image(systemName: "chevron.down")
-                                                    .foregroundColor(Color.AppTheme.secondaryText)
-                                            }
-                                            .padding()
-                                            .background(Color.AppTheme.cardBackground)
-                                            .cornerRadius(10)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
-                                            )
-                                        }
-                                    }
-                                    .padding(.horizontal)
-                                }
-                                
-                                Spacer(minLength: 30)
-                                
-                                // Generate button
-                                Button(action: {
-                                    if viewModel.selectedTopic.isEmpty {
-                                        viewModel.selectedTopic = viewModel.getRandomSelection(from: PodcastTopics.allTopics)
-                                    }
-                                    
-                                    if preferences.subscriptionTier != .free &&
-                                        !viewModel.selectedTestament.isEmpty &&
-                                        !viewModel.selectedBook.isEmpty &&
-                                        !viewModel.selectedChapter.isEmpty {
-                                        viewModel.generatePremiumPodcast()
-                                    } else {
-                                        viewModel.generatePodcast()
-                                    }
-                                }) {
-                                    if viewModel.isLoading {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    } else {
-                                        Text("Generate Podcast")
-                                            .font(.headline)
-                                    }
-                                }
-                                .foregroundColor(.white)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.brandMint)
-                                .cornerRadius(10)
-                                .padding(.horizontal)
-                                .disabled(viewModel.isLoading)
-                                
-                                if !viewModel.errorMessage.isEmpty {
-                                    Text(viewModel.errorMessage)
-                                        .foregroundColor(.red)
-                                        .padding()
-                                }
-                                
-                                // Previous podcasts
-                                if !viewModel.podcasts.isEmpty {
-                                    VStack(alignment: .leading, spacing: 15) {
-                                        Text("Previous Podcasts")
-                                            .font(.headline)
-                                            .foregroundColor(Color.AppTheme.primaryText)
-                                            .padding(.horizontal)
-                                        
-                                        ScrollView(.horizontal, showsIndicators: false) {
-                                            HStack(spacing: 15) {
-                                                ForEach(viewModel.podcasts) { podcast in
-                                                    PodcastCard(podcast: podcast, isPlaying: viewModel.isPlaying && viewModel.currentPodcastId == podcast.id) {
-                                                        if viewModel.isPlaying && viewModel.currentPodcastId == podcast.id {
-                                                            viewModel.stopPlayback()
-                                                        } else {
-                                                            viewModel.playPodcast(podcast)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            .padding(.horizontal)
-                                        }
-                                    }
-                                    .padding(.top)
-                                }
-                            }
-                            .padding(.bottom, 30)
-                        }
+                        PodcastGeneratorView(
+                            viewModel: viewModel,
+                            preferences: preferences,
+                            showingTopicSelector: $showingTopicSelector,
+                            showingScriptureSelector: $showingScriptureSelector
+                        )
                     }
                 }
             }
@@ -305,9 +51,6 @@ struct PodcastView: View {
             .sheet(isPresented: $showingTopicSelector) {
                 TopicSelectorView(selectedTopic: $viewModel.selectedTopic)
             }
-            .sheet(isPresented: $showingDurationSelector) {
-                DurationSelectorView(selectedDuration: $viewModel.podcastDuration)
-            }
             .sheet(isPresented: $showingScriptureSelector) {
                 ScriptureSelectorView(
                     selectedTestament: $viewModel.selectedTestament,
@@ -323,8 +66,315 @@ struct PodcastView: View {
     }
 }
 
+// MARK: - Podcast Player View
+struct PodcastPlayerView: View {
+    @ObservedObject var viewModel: PodcastViewModel
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                podcastHeader
+                playerControls
+                
+                Divider()
+                    .background(Color.brandMint.opacity(0.5))
+                
+                contentSection
+                
+                if !viewModel.scriptureReferences.isEmpty {
+                    scriptureSection
+                }
+                
+                Spacer(minLength: 40)
+                
+                newPodcastButton
+            }
+            .padding()
+        }
+    }
+    
+    private var podcastHeader: some View {
+        Text(viewModel.podcast?.title ?? "Podcast")
+            .font(.system(size: 24, weight: .bold))
+            .foregroundColor(Color.AppTheme.primaryText)
+            .padding(.top)
+    }
+    
+    private var playerControls: some View {
+        VStack(spacing: 16) {
+            // Audio player with wave animation
+            HStack {
+                AudioWaveAnimation(isPlaying: viewModel.isPlaying) {
+                    if viewModel.isPlaying {
+                        viewModel.stopPlayback()
+                    } else {
+                        // Check if there's a podcast entry with the current ID
+                        if let podcastId = viewModel.currentPodcastId,
+                           let podcastEntry = viewModel.podcasts.first(where: { $0.id == podcastId }) {
+                            viewModel.playPodcast(podcast: podcastEntry)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Duration info
+                Text("Duration: \(viewModel.podcast?.duration ?? 0) min")
+                    .font(.subheadline)
+                    .foregroundColor(Color.AppTheme.secondaryText)
+                    .padding(.trailing, 8)
+            }
+            
+            // Status text
+            Text(viewModel.isPlaying ? "Playing Bible study..." : "Bible study ready to play")
+                .font(.subheadline)
+                .foregroundColor(Color.AppTheme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 4)
+        }
+        .padding(.vertical, 8)
+    }
+    
+    private var contentSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Content")
+                .font(.headline)
+                .foregroundColor(Color.brandMint)
+            
+            Text(viewModel.podcast?.content ?? "")
+                .font(.body)
+                .foregroundColor(Color.AppTheme.primaryText)
+                .lineSpacing(6)
+        }
+    }
+    
+    private var scriptureSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+                .background(Color.brandMint.opacity(0.5))
+                .padding(.vertical)
+            
+            Text("Scripture References")
+                .font(.headline)
+                .foregroundColor(Color.brandMint)
+            
+            Text(viewModel.scriptureReferences)
+                .font(.subheadline)
+                .foregroundColor(Color.AppTheme.primaryText)
+                .padding(.vertical, 2)
+        }
+    }
+    
+    private var newPodcastButton: some View {
+        Button(action: {
+            viewModel.showPodcast = false
+        }) {
+            Text("Generate New Podcast")
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.brandMint)
+                .cornerRadius(10)
+        }
+    }
+}
+
+// MARK: - Podcast Generator View
+struct PodcastGeneratorView: View {
+    @ObservedObject var viewModel: PodcastViewModel
+    var preferences: UserPreferences
+    @Binding var showingTopicSelector: Bool
+    @Binding var showingScriptureSelector: Bool
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 25) {
+                Text("Generate a Podcast")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(Color.brandMint)
+                    .padding(.top)
+                
+                topicSelector
+                
+                // Duration info with range
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Duration")
+                        .font(.headline)
+                        .foregroundColor(Color.AppTheme.primaryText)
+                    
+                    HStack {
+                        Text("1-5 minutes")
+                            .foregroundColor(Color.AppTheme.primaryText)
+                        
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color.AppTheme.cardBackground)
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal)
+                
+                if preferences.subscriptionTier != .free {
+                    scriptureSelector
+                }
+                
+                Spacer(minLength: 30)
+                
+                generateButton
+                
+                if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .padding()
+                }
+                
+                if !viewModel.podcasts.isEmpty {
+                    previousPodcasts
+                }
+            }
+            .padding(.bottom, 30)
+        }
+    }
+    
+    private var topicSelector: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Topic")
+                .font(.headline)
+                .foregroundColor(Color.AppTheme.primaryText)
+            
+            Button(action: {
+                showingTopicSelector = true
+            }) {
+                HStack {
+                    Text(viewModel.selectedTopic.isEmpty ? "Select a topic" : viewModel.selectedTopic)
+                        .foregroundColor(viewModel.selectedTopic.isEmpty ? Color.AppTheme.secondaryText : Color.AppTheme.primaryText)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(Color.AppTheme.secondaryText)
+                }
+                .padding()
+                .background(Color.AppTheme.cardBackground)
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
+                )
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private var scriptureSelector: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Scripture Reference")
+                    .font(.headline)
+                    .foregroundColor(Color.AppTheme.primaryText)
+                
+                Text("(Premium)")
+                    .font(.caption)
+                    .foregroundColor(Color.brandMint)
+            }
+            
+            Button(action: {
+                showingScriptureSelector = true
+            }) {
+                HStack {
+                    if viewModel.selectedTestament.isEmpty || viewModel.selectedBook.isEmpty || viewModel.selectedChapter.isEmpty {
+                        Text("Select scripture")
+                            .foregroundColor(Color.AppTheme.secondaryText)
+                    } else {
+                        Text("\(viewModel.selectedBook) \(viewModel.selectedChapter)")
+                            .foregroundColor(Color.AppTheme.primaryText)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(Color.AppTheme.secondaryText)
+                }
+                .padding()
+                .background(Color.AppTheme.cardBackground)
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
+                )
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private var generateButton: some View {
+        Button(action: {
+            if viewModel.selectedTopic.isEmpty {
+                viewModel.selectedTopic = PodcastTopics.allTopics.randomElement() ?? "Faith"
+            }
+            
+            if preferences.subscriptionTier != .free &&
+                !viewModel.selectedTestament.isEmpty &&
+                !viewModel.selectedBook.isEmpty &&
+                !viewModel.selectedChapter.isEmpty {
+                viewModel.generatePremiumPodcast()
+            } else {
+                viewModel.generatePodcast()
+            }
+        }) {
+            if viewModel.isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            } else {
+                Text("Generate Podcast")
+                    .font(.headline)
+            }
+        }
+        .foregroundColor(.white)
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.brandMint)
+        .cornerRadius(10)
+        .padding(.horizontal)
+        .disabled(viewModel.isLoading)
+    }
+    
+    private var previousPodcasts: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Previous Podcasts")
+                .font(.headline)
+                .foregroundColor(Color.AppTheme.primaryText)
+                .padding(.horizontal)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 15) {
+                    ForEach(viewModel.podcasts) { podcast in
+                        PodcastCard(
+                            podcast: podcast,
+                            isPlaying: viewModel.isPlaying && viewModel.currentPodcastId == podcast.id
+                        ) {
+                            if viewModel.isPlaying && viewModel.currentPodcastId == podcast.id {
+                                viewModel.stopPlayback()
+                            } else {
+                                viewModel.playPodcast(podcast: podcast)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.top)
+    }
+}
+
 struct PodcastCard: View {
-    let podcast: Podcast
+    let podcast: PodcastEntry
     let isPlaying: Bool
     let action: () -> Void
     
@@ -336,17 +386,15 @@ struct PodcastCard: View {
                 .lineLimit(2)
             
             HStack {
-                Text("\(podcast.duration) min")
+                Text(podcast.chapter)
                     .font(.caption)
                     .foregroundColor(Color.AppTheme.secondaryText)
                 
                 Spacer()
                 
-                Button(action: action) {
-                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 30))
-                        .foregroundColor(Color.brandMint)
-                }
+                AudioWaveAnimation(isPlaying: isPlaying, color: .brandMint, onTap: action)
+                    .scaleEffect(0.7)
+                    .frame(width: 60)
             }
         }
         .padding()
@@ -438,54 +486,6 @@ struct SearchBar: View {
     }
 }
 
-struct DurationSelectorView: View {
-    @Environment(\.presentationMode) var presentationMode
-    @Binding var selectedDuration: Int
-    @EnvironmentObject private var preferences: UserPreferences
-    
-    let durations = [5, 10, 15, 20, 30]
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color.AppTheme.background.edgesIgnoringSafeArea(.all)
-                
-                List {
-                    ForEach(durations, id: \.self) { duration in
-                        Button(action: {
-                            selectedDuration = duration
-                            presentationMode.wrappedValue.dismiss()
-                        }) {
-                            HStack {
-                                Text("\(duration) minutes")
-                                    .foregroundColor(Color.AppTheme.primaryText)
-                                
-                                Spacer()
-                                
-                                if selectedDuration == duration {
-                                    Image(systemName: "checkmark")
-                                        .foregroundColor(Color.brandMint)
-                                }
-                            }
-                        }
-                    }
-                }
-                .listStyle(PlainListStyle())
-                .background(Color.AppTheme.background)
-            }
-            .navigationTitle("Select Duration")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(preferences.isDarkMode ? .dark : .light, for: .navigationBar)
-            .toolbarBackground(Color.AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .navigationBarItems(trailing: Button("Cancel") {
-                presentationMode.wrappedValue.dismiss()
-            }
-            .foregroundColor(Color.brandMint))
-        }
-    }
-}
-
 struct ScriptureSelectorView: View {
     @Environment(\.presentationMode) var presentationMode
     @Binding var selectedTestament: String
@@ -501,54 +501,11 @@ struct ScriptureSelectorView: View {
                 
                 VStack {
                     if selectionStep == 0 {
-                        // Testament selection
-                        List {
-                            ForEach(BibleData.testaments, id: \.self) { testament in
-                                Button(action: {
-                                    selectedTestament = testament
-                                    selectionStep = 1
-                                }) {
-                                    Text(testament)
-                                        .foregroundColor(Color.AppTheme.primaryText)
-                                }
-                            }
-                        }
-                        .listStyle(PlainListStyle())
-                        .background(Color.AppTheme.background)
-                        .navigationTitle("Select Testament")
+                        testamentSelectionView
                     } else if selectionStep == 1 {
-                        // Book selection
-                        List {
-                            ForEach(BibleData.books[selectedTestament] ?? [], id: \.self) { book in
-                                Button(action: {
-                                    selectedBook = book
-                                    selectionStep = 2
-                                }) {
-                                    Text(book)
-                                        .foregroundColor(Color.AppTheme.primaryText)
-                                }
-                            }
-                        }
-                        .listStyle(PlainListStyle())
-                        .background(Color.AppTheme.background)
-                        .navigationTitle("Select Book")
+                        bookSelectionView
                     } else {
-                        // Chapter selection
-                        let chapters = BibleData.chapters[selectedBook] ?? 1
-                        List {
-                            ForEach(1...chapters, id: \.self) { chapter in
-                                Button(action: {
-                                    selectedChapter = String(chapter)
-                                    presentationMode.wrappedValue.dismiss()
-                                }) {
-                                    Text("Chapter \(chapter)")
-                                        .foregroundColor(Color.AppTheme.primaryText)
-                                }
-                            }
-                        }
-                        .listStyle(PlainListStyle())
-                        .background(Color.AppTheme.background)
-                        .navigationTitle("Select Chapter")
+                        chapterSelectionView
                     }
                 }
             }
@@ -567,6 +524,63 @@ struct ScriptureSelectorView: View {
                 .foregroundColor(Color.brandMint)
             )
         }
+    }
+    
+    private var testamentSelectionView: some View {
+        List {
+            ForEach(BibleStructure.structure.map { $0.name }, id: \.self) { testament in
+                Button(action: {
+                    selectedTestament = testament
+                    selectionStep = 1
+                }) {
+                    Text(testament)
+                        .foregroundColor(Color.AppTheme.primaryText)
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+        .background(Color.AppTheme.background)
+        .navigationTitle("Select Testament")
+    }
+    
+    private var bookSelectionView: some View {
+        List {
+            let books = BibleStructure.structure.first(where: { $0.name == selectedTestament })?.books.map { $0.name } ?? []
+            ForEach(books, id: \.self) { book in
+                Button(action: {
+                    selectedBook = book
+                    selectionStep = 2
+                }) {
+                    Text(book)
+                        .foregroundColor(Color.AppTheme.primaryText)
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+        .background(Color.AppTheme.background)
+        .navigationTitle("Select Book")
+    }
+    
+    private var chapterSelectionView: some View {
+        List {
+            let chapterCount = BibleStructure.structure
+                .first(where: { $0.name == selectedTestament })?
+                .books.first(where: { $0.name == selectedBook })?
+                .chapters ?? 0
+            
+            ForEach(1...chapterCount, id: \.self) { chapter in
+                Button(action: {
+                    selectedChapter = String(chapter)
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("Chapter \(chapter)")
+                        .foregroundColor(Color.AppTheme.primaryText)
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+        .background(Color.AppTheme.background)
+        .navigationTitle("Select Chapter")
     }
 }
 
