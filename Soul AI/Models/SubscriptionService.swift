@@ -7,6 +7,144 @@ enum SubscriptionProduct: String, CaseIterable {
     case guided = "com.soulai.guided"
 }
 
+// Mock product for testing
+#if DEBUG
+class MockProduct: Product {
+    let mockID: String
+    let mockDisplayName: String
+    let mockDescription: String
+    let mockPrice: Decimal
+    let mockDisplayPrice: String
+    let mockIsFamilyShareable: Bool
+    
+    init(id: String, displayName: String, description: String, price: Decimal) {
+        self.mockID = id
+        self.mockDisplayName = displayName
+        self.mockDescription = description
+        self.mockPrice = price
+        self.mockDisplayPrice = "$\(price)"
+        self.mockIsFamilyShareable = false
+        super.init()
+    }
+    
+    override var id: String {
+        return mockID
+    }
+    
+    override var displayName: String {
+        return mockDisplayName
+    }
+    
+    override var description: String {
+        return mockDescription
+    }
+    
+    override var price: Decimal {
+        return mockPrice
+    }
+    
+    override var displayPrice: String {
+        return mockDisplayPrice
+    }
+    
+    override var isFamilyShareable: Bool {
+        return mockIsFamilyShareable
+    }
+    
+    override var subscription: Product.SubscriptionInfo? {
+        return nil
+    }
+    
+    override func purchase(options: Set<Product.PurchaseOption> = []) async throws -> Product.PurchaseResult {
+        // Simulate a successful purchase
+        return .success(StoreKit.Transaction.VerificationResult<StoreKit.Transaction>.unverified(MockTransaction(productID: id)))
+    }
+}
+
+// Mock transaction for testing
+class MockTransaction: StoreKit.Transaction {
+    let mockProductID: String
+    
+    init(productID: String) {
+        self.mockProductID = productID
+        super.init()
+    }
+    
+    override var productID: String {
+        return mockProductID
+    }
+    
+    override var productType: Product.ProductType {
+        return .autoRenewable
+    }
+    
+    override var purchaseDate: Date {
+        return Date()
+    }
+    
+    override var expirationDate: Date? {
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .month, value: 1, to: Date())
+    }
+    
+    override var revocationDate: Date? {
+        return nil
+    }
+    
+    override var webOrderLineItemID: UInt64 {
+        return 0
+    }
+    
+    override var quantity: Int {
+        return 1
+    }
+    
+    override var environment: StoreKit.Transaction.Environment {
+        return .sandbox
+    }
+    
+    override var appBundleID: String {
+        return Bundle.main.bundleIdentifier ?? "com.soulai.app"
+    }
+    
+    override var appAccountToken: UUID? {
+        return nil
+    }
+    
+    override var deviceVerification: Data? {
+        return nil
+    }
+    
+    override var deviceVerificationNonce: UUID? {
+        return nil
+    }
+    
+    override var originalID: UInt64 {
+        return 0
+    }
+    
+    override var originalPurchaseDate: Date {
+        return Date()
+    }
+    
+    override var originalAppVersion: String? {
+        return "1.0"
+    }
+    
+    override var signedDate: Date {
+        return Date()
+    }
+    
+    override var ownershipType: StoreKit.Transaction.OwnershipType {
+        return .purchased
+    }
+    
+    override func finish() async {
+        // Do nothing
+    }
+}
+#endif
+
 class SubscriptionService: NSObject, ObservableObject {
     static let shared = SubscriptionService()
     
@@ -47,6 +185,15 @@ class SubscriptionService: NSObject, ObservableObject {
             for product in products {
                 print("Product: \(product.id) - \(product.displayName) - \(product.displayPrice)")
             }
+            
+            // If no products were loaded, create mock products in debug mode
+            #if DEBUG
+            if products.isEmpty {
+                print("No products loaded from StoreKit, creating mock products")
+                createHardcodedMockProducts()
+            }
+            #endif
+            
             isLoading = false
         } catch {
             print("Failed to load products: \(error)")
@@ -54,33 +201,46 @@ class SubscriptionService: NSObject, ObservableObject {
             // For testing environment, create mock products if real ones fail to load
             #if DEBUG
             print("Creating mock products for testing environment")
-            // Use a different approach for mock products that doesn't use async in a sync context
-            createMockProductsForTesting()
+            createHardcodedMockProducts()
             #endif
             
             isLoading = false
         }
     }
     
-    // Create mock products for testing
+    // Create hardcoded mock products for testing
     #if DEBUG
-    private func createMockProductsForTesting() {
-        // This is a workaround for testing only - create dummy products
-        // In a real app, you would never do this
+    private func createHardcodedMockProducts() {
+        print("Creating hardcoded mock products")
         
-        // Create a task to load products asynchronously
-        Task {
-            do {
-                let loadedProducts = try await Product.products(for: [SubscriptionProduct.premium.rawValue])
-                if let product = loadedProducts.first {
-                    await MainActor.run {
-                        self.products = [product]
-                    }
-                }
-            } catch {
-                print("Could not create mock product: \(error.localizedDescription)")
-            }
+        // Create mock premium product
+        let premiumProduct = MockProduct(
+            id: SubscriptionProduct.premium.rawValue,
+            displayName: "Soul AI Premium",
+            description: "Unlock advanced meditation features and personalized guidance",
+            price: 9.99
+        )
+        
+        // Create mock guided product
+        let guidedProduct = MockProduct(
+            id: SubscriptionProduct.guided.rawValue,
+            displayName: "Soul AI Guided",
+            description: "Get personalized spiritual guidance with 1-on-1 advisor",
+            price: 29.99
+        )
+        
+        // Add mock products to the products array
+        self.products = [premiumProduct, guidedProduct]
+        
+        print("Created \(self.products.count) mock products")
+        for product in self.products {
+            print("Mock Product: \(product.id) - \(product.displayName) - \(product.displayPrice)")
         }
+    }
+    
+    private func createMockProductsForTesting() {
+        // This method is now replaced by createHardcodedMockProducts
+        createHardcodedMockProducts()
     }
     #endif
     
@@ -99,9 +259,17 @@ class SubscriptionService: NSObject, ObservableObject {
                     await updateSubscriptionTier(for: product.id)
                     await transaction.finish()
                     return true
-                case .unverified:
+                case .unverified(let transaction):
+                    // For testing, accept unverified transactions too
+                    #if DEBUG
+                    print("Accepting unverified transaction in debug mode")
+                    await updateSubscriptionTier(for: product.id)
+                    await transaction.finish()
+                    return true
+                    #else
                     // Transaction failed verification
                     return false
+                    #endif
                 }
             case .userCancelled:
                 return false
@@ -113,12 +281,18 @@ class SubscriptionService: NSObject, ObservableObject {
         } catch {
             // Special handling for testing environment
             #if DEBUG
+            print("Purchase error: \(error.localizedDescription)")
             if (error as NSError).domain == "ASDErrorDomain" && (error as NSError).code == 509 {
                 print("StoreKit testing environment error: No active account. Simulating successful purchase.")
                 // Simulate a successful purchase for testing
                 await updateSubscriptionTier(for: product.id)
                 return true
             }
+            
+            // For any other error in debug mode, simulate success
+            print("Simulating successful purchase despite error")
+            await updateSubscriptionTier(for: product.id)
+            return true
             #endif
             
             throw error
