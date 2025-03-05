@@ -132,7 +132,7 @@ class PodcastViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // Generate premium podcast using OpenAI
+    // Generate premium podcast using a hybrid template system with Claude
     func generatePremiumPodcast() {
         guard UserPreferences().isSubscriptionActive else {
             errorMessage = "Premium subscription required for advanced podcasts."
