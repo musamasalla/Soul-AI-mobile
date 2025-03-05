@@ -110,7 +110,7 @@ class PodcastViewModel: ObservableObject {
                     let errorMsg: String
                     if let urlError = error as? URLError, urlError.code == .timedOut {
                         errorMsg = "The request timed out. The Bible study generation is taking longer than expected. Please try again later."
-                    } else if let nsError = error as? NSError, nsError.domain == NSURLErrorDomain && nsError.code == -1001 {
+                    } else if (error as NSError).domain == NSURLErrorDomain && (error as NSError).code == -1001 {
                         // -1001 is also a timeout error
                         errorMsg = "The request timed out. The Bible study generation is taking longer than expected. Please try again later."
                     } else {
