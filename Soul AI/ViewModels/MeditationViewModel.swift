@@ -16,6 +16,7 @@ class MeditationViewModel: NSObject, ObservableObject {
     @Published var meditation: Meditation?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
+    @Published var showMeditation: Bool = false
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -114,6 +115,37 @@ class MeditationViewModel: NSObject, ObservableObject {
             requestBody["scriptureReference"] = scriptureReference
         }
         
+        // DEVELOPMENT MODE: Use local mock instead of calling Supabase
+        // This allows testing without a deployed Supabase function
+        #if DEBUG
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self = self else { return }
+            
+            // Create a mock meditation based on user inputs
+            let mockTitle = "Advanced \(self.selectedTopic) Meditation"
+            
+            var mockContent = "Welcome to this guided Christian meditation on \(self.selectedTopic). "
+            mockContent += "As you're feeling \(self.moodText), take a moment to center yourself in God's presence. "
+            
+            if !self.scriptureReference.isEmpty {
+                mockContent += "Reflecting on \(self.scriptureReference), we are reminded of God's faithfulness. "
+            }
+            
+            mockContent += "Take a deep breath in... and out... Feel God's peace washing over you. "
+            mockContent += "For the next \(self.meditationDuration) minutes, allow yourself to be fully present with God. "
+            mockContent += "Remember that you are loved, you are valued, and you are never alone on this journey."
+            
+            self.meditation = Meditation(
+                title: mockTitle,
+                content: mockContent,
+                duration: self.meditationDuration
+            )
+            
+            self.isLoading = false
+            self.showMeditation = true
+        }
+        #else
+        // Original code for production
         SupabaseService.shared.generateAdvancedMeditation(requestBody: requestBody)
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
@@ -132,26 +164,14 @@ class MeditationViewModel: NSObject, ObservableObject {
                 }
                 
                 self.isLoading = false
-            }, receiveValue: { [weak self] response in
+            }, receiveValue: { [weak self] meditation in
                 guard let self = self else { return }
                 
-                // Clean up title but preserve formatting for content
-                var title = response.title
-                title = title.replacingOccurrences(of: "###", with: "")
-                title = title.replacingOccurrences(of: "**", with: "")
-                title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                // Store the raw content
-                let content = response.content
-                
-                // Create meditation object
-                self.meditation = Meditation(
-                    title: title,
-                    content: content,
-                    duration: self.meditationDuration
-                )
+                self.meditation = meditation
+                self.showMeditation = true
             })
             .store(in: &cancellables)
+        #endif
     }
     
     deinit {
