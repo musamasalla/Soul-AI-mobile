@@ -322,8 +322,7 @@ class SubscriptionService: NSObject, ObservableObject {
     // Update the list of purchased products
     @MainActor
     func updatePurchasedProducts() async throws {
-        var hasError: Error? = nil
-        
+        // We don't need to track errors here since we're using for-await which will throw if there's an error
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result {
                 if transaction.revocationDate == nil {
@@ -333,10 +332,6 @@ class SubscriptionService: NSObject, ObservableObject {
                     purchasedProductIDs.remove(transaction.productID)
                 }
             }
-        }
-        
-        if let error = hasError {
-            throw error
         }
     }
     
