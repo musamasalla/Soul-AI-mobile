@@ -4,6 +4,7 @@ struct DailyInspirationView: View {
     @StateObject private var viewModel = ChatViewModel()
     @State private var inspiration: String = "Loading today's inspiration..."
     @State private var isLoading: Bool = true
+    @EnvironmentObject private var preferences: UserPreferences
     
     var body: some View {
         ZStack {
@@ -36,14 +37,14 @@ struct DailyInspirationView: View {
                         Text(inspiration)
                             .font(.system(size: 20))
                             .multilineTextAlignment(.center)
-                            .foregroundColor(.white)
+                            .foregroundColor(.primaryText)
                             .padding()
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
                 .padding(.horizontal, 20)
-                .background(Color(.systemGray6).opacity(0.2))
+                .background(Color.cardBackground)
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
@@ -55,50 +56,45 @@ struct DailyInspirationView: View {
                 
                 // Share button
                 Button(action: {
-                    shareInspiration()
+                    // Share functionality
+                    let activityVC = UIActivityViewController(activityItems: [inspiration], applicationActivities: nil)
+                    
+                    // Present the activity view controller
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let rootViewController = windowScene.windows.first?.rootViewController {
+                        rootViewController.present(activityVC, animated: true, completion: nil)
+                    }
                 }) {
                     HStack {
                         Image(systemName: "square.and.arrow.up")
-                        Text("Share")
+                            .font(.system(size: 16))
+                        
+                        Text("Share Inspiration")
+                            .font(.headline)
                     }
                     .foregroundColor(.black)
-                    .padding(.vertical, 12)
                     .padding(.horizontal, 30)
+                    .padding(.vertical, 12)
                     .background(Color.brandMint)
-                    .cornerRadius(10)
+                    .cornerRadius(30)
                 }
-                .disabled(isLoading)
-                .opacity(isLoading ? 0.5 : 1.0)
                 .padding(.bottom, 30)
+                
+                Spacer()
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
         .onAppear {
-            loadDailyInspiration()
-        }
-    }
-    
-    private func loadDailyInspiration() {
-        isLoading = true
-        viewModel.getDailyInspiration { receivedInspiration in
-            inspiration = receivedInspiration
-            isLoading = false
-        }
-    }
-    
-    private func shareInspiration() {
-        let activityVC = UIActivityViewController(
-            activityItems: ["Today's Christian Inspiration from Soul AI: \(inspiration)"],
-            applicationActivities: nil
-        )
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            rootViewController.present(activityVC, animated: true)
+            // Simulate loading an inspiration
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                inspiration = "\"Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.\" - Proverbs 3:5-6"
+                isLoading = false
+            }
         }
     }
 }
 
 #Preview {
     DailyInspirationView()
+        .environmentObject(UserPreferences())
 } 

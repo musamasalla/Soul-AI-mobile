@@ -10,7 +10,7 @@ struct ChatView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.black
+            Color.brandBackground
                 .ignoresSafeArea()
             
             // Main chat view
@@ -46,7 +46,7 @@ struct ChatView: View {
                         }
                     }
                 }
-                .background(Color.black)
+                .background(Color.brandBackground)
                 
                 // Input area
                 inputArea
@@ -72,7 +72,7 @@ struct ChatView: View {
                 .transition(.opacity)
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
         .onAppear {
             viewModel.addWelcomeMessage()
         }
@@ -111,7 +111,7 @@ struct ChatView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color.black)
+        .background(Color.brandBackground)
         .shadow(color: Color.brandMint.opacity(0.2), radius: 5, x: 0, y: 2)
     }
     
@@ -124,8 +124,8 @@ struct ChatView: View {
                 // Text input field
                 TextField("Message Soul AI...", text: $viewModel.inputMessage, axis: .vertical)
                     .padding(12)
-                    .background(Color(.systemGray6).opacity(0.3))
-                    .foregroundColor(.white)
+                    .background(Color.inputBackground)
+                    .foregroundColor(.primaryText)
                     .cornerRadius(20)
                     .focused($isInputFocused)
                     .lineLimit(5)
@@ -148,7 +148,7 @@ struct ChatView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.black)
+            .background(Color.brandBackground)
         }
     }
     
@@ -157,15 +157,15 @@ struct ChatView: View {
             // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondaryText)
                 
                 Text("Search")
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondaryText)
                 
                 Spacer()
             }
             .padding()
-            .background(Color(.systemGray6).opacity(0.3))
+            .background(Color.inputBackground)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -179,7 +179,7 @@ struct ChatView: View {
                     .font(.system(size: 24))
                     .foregroundColor(Color.brandMint)
                     .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.black))
+                    .background(Circle().fill(Color.brandBackground))
                 
                 Text("Soul AI")
                     .font(.headline)
@@ -189,7 +189,7 @@ struct ChatView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(Color(.systemGray6).opacity(0.1))
+            .background(Color.cardBackground)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -246,7 +246,7 @@ struct ChatView: View {
                     )
                 
                 Text(preferences.userName)
-                    .foregroundColor(.white)
+                    .foregroundColor(.primaryText)
                 
                 Spacer()
                 
@@ -260,7 +260,7 @@ struct ChatView: View {
             }
             .padding()
         }
-        .background(Color.black)
+        .background(Color.brandBackground)
         .edgesIgnoringSafeArea(.vertical)
     }
     
@@ -268,12 +268,12 @@ struct ChatView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(days)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
                 .padding(.horizontal)
             
             HStack {
                 Text(title)
-                    .foregroundColor(.white)
+                    .foregroundColor(.primaryText)
                     .lineLimit(1)
                 
                 Spacer()

@@ -3,6 +3,7 @@ import SwiftUI
 struct MessageBubbleView: View {
     let message: Message
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var preferences: UserPreferences
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -16,7 +17,7 @@ struct MessageBubbleView: View {
                             .foregroundColor(Color.brandMint.opacity(0.7))
                         
                         Text(message.content)
-                            .foregroundColor(.white)
+                            .foregroundColor(.primaryText)
                     }
                     
                     Spacer()
@@ -33,7 +34,7 @@ struct MessageBubbleView: View {
                             .foregroundColor(Color.brandMint.opacity(0.7))
                         
                         Text(message.content)
-                            .foregroundColor(.white)
+                            .foregroundColor(.primaryText)
                             .multilineTextAlignment(.trailing)
                     }
                     
@@ -44,8 +45,8 @@ struct MessageBubbleView: View {
             }
         }
         .background(message.role == .assistant ? 
-                    Color.black : 
-                    Color(.systemGray6).opacity(0.1))
+                    Color.brandBackground : 
+                    Color.cardBackground)
     }
     
     private var assistantIcon: some View {
@@ -53,7 +54,7 @@ struct MessageBubbleView: View {
             .foregroundColor(Color.brandMint)
             .font(.system(size: 16))
             .frame(width: 24, height: 24)
-            .background(Circle().fill(Color.black))
+            .background(Circle().fill(Color.brandBackground))
             .overlay(
                 Circle()
                     .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
@@ -74,6 +75,7 @@ struct MessageBubbleView: View {
             MessageBubbleView(message: Message(content: "Hello, how can I help you today with your faith journey? I'm here to provide guidance and support based on Christian teachings.", role: .assistant))
             MessageBubbleView(message: Message(content: "I have a question about faith and doubt. How do I handle moments of uncertainty?", role: .user))
         }
-        .background(Color.black)
+        .background(Color.brandBackground)
+        .environmentObject(UserPreferences())
     }
 } 

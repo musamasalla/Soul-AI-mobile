@@ -56,8 +56,8 @@ struct WelcomeView: View {
                     
                     TextField("Enter your name", text: $username)
                         .padding()
-                        .background(Color(.systemGray6).opacity(0.3))
-                        .foregroundColor(.white)
+                        .background(Color.inputBackground)
+                        .foregroundColor(.primaryText)
                         .cornerRadius(10)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
@@ -68,10 +68,10 @@ struct WelcomeView: View {
                 .padding(.bottom, 20)
                 
                 // Dark mode toggle
-                Toggle("Enable Dark Mode", isOn: $preferences.isDarkMode)
+                Toggle("Dark Mode", isOn: $preferences.isDarkMode)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 20)
-                    .foregroundColor(.brandMint)
+                    .foregroundColor(.primaryText)
                     .tint(.brandMint)
                 
                 // Get started button
@@ -97,10 +97,8 @@ struct WelcomeView: View {
                 .opacity(username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.6 : 1.0)
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
         .onAppear {
-            // Force dark mode to match the brand aesthetic
-            preferences.isDarkMode = true
             username = preferences.userName
         }
     }
@@ -119,7 +117,7 @@ struct WelcomeView: View {
                 
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(.secondaryText)
             }
         }
     }
