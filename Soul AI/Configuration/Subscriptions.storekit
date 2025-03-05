@@ -1,0 +1,87 @@
+{
+  "identifier" : "9A052A7E-58AC-4356-8EB5-85B82A262F40",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "com.soulai.app",
+    "_developerTeamID" : "YOURTEAMID",
+    "_lastSynchronizedDate" : 713911128.92110503
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "20F40318-D4AE-4B2A-AE69-8D7151F38941",
+      "localizations" : [
+        {
+          "description" : "Soul AI subscription options",
+          "displayName" : "Soul AI Subscriptions",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Soul AI Subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6A8B9C7D-5E4F-3D2C-1B0A-9E8D7F6A5B4C",
+          "introductoryOffer" : {
+            "internalID" : "3F2E1D0C-B9A8-7C6D-5E4F-3D2C1B0A9E8D",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Unlock advanced meditation features and personalized guidance",
+              "displayName" : "Soul AI Premium",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.soulai.premium",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Subscription",
+          "subscriptionGroupID" : "20F40318-D4AE-4B2A-AE69-8D7151F38941",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "1A2B3C4D-5E6F-7G8H-9I0J-1K2L3M4N5O6P",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Get personalized spiritual guidance with 1-on-1 advisor",
+              "displayName" : "Soul AI Guided",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.soulai.guided",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Guided Subscription",
+          "subscriptionGroupID" : "20F40318-D4AE-4B2A-AE69-8D7151F38941",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+} 
