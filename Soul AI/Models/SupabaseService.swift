@@ -4,7 +4,15 @@ import Combine
 class SupabaseService {
     static let shared = SupabaseService()
     
-    private init() {}
+    private let session: URLSession
+    
+    private init() {
+        // Create a custom URLSession configuration with increased timeout
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 60.0 // Increase timeout to 60 seconds
+        configuration.timeoutIntervalForResource = 60.0
+        self.session = URLSession(configuration: configuration)
+    }
     
     // MARK: - Chat API
     
@@ -33,12 +41,33 @@ class SupabaseService {
             return Fail(error: error).eraseToAnyPublisher()
         }
         
-        return URLSession.shared.dataTaskPublisher(for: request)
+        return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
+                guard let httpResponse = response as? HTTPURLResponse else {
                     throw URLError(.badServerResponse)
                 }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Try to extract error message from response
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = errorData["error"] as? String {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                    } else {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
+                    }
+                }
+                
+                // Log response for debugging
+                #if DEBUG
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("API Response: \(responseString)")
+                }
+                #endif
+                
                 return data
             }
             .decode(type: ChatResponse.self, decoder: JSONDecoder())
@@ -61,12 +90,33 @@ class SupabaseService {
             request.setValue(value, forHTTPHeaderField: key)
         }
         
-        return URLSession.shared.dataTaskPublisher(for: request)
+        return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
+                guard let httpResponse = response as? HTTPURLResponse else {
                     throw URLError(.badServerResponse)
                 }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Try to extract error message from response
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = errorData["error"] as? String {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                    } else {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
+                    }
+                }
+                
+                // Log response for debugging
+                #if DEBUG
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("API Response: \(responseString)")
+                }
+                #endif
+                
                 return data
             }
             .decode(type: InspirationResponse.self, decoder: JSONDecoder())
@@ -100,12 +150,33 @@ class SupabaseService {
             return Fail(error: error).eraseToAnyPublisher()
         }
         
-        return URLSession.shared.dataTaskPublisher(for: request)
+        return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
+                guard let httpResponse = response as? HTTPURLResponse else {
                     throw URLError(.badServerResponse)
                 }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Try to extract error message from response
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = errorData["error"] as? String {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                    } else {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
+                    }
+                }
+                
+                // Log response for debugging
+                #if DEBUG
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("API Response: \(responseString)")
+                }
+                #endif
+                
                 return data
             }
             .decode(type: MeditationResponse.self, decoder: JSONDecoder())
@@ -136,12 +207,33 @@ class SupabaseService {
             return Fail(error: error).eraseToAnyPublisher()
         }
         
-        return URLSession.shared.dataTaskPublisher(for: request)
+        return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
+                guard let httpResponse = response as? HTTPURLResponse else {
                     throw URLError(.badServerResponse)
                 }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Try to extract error message from response
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = errorData["error"] as? String {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                    } else {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
+                    }
+                }
+                
+                // Log response for debugging
+                #if DEBUG
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("API Response: \(responseString)")
+                }
+                #endif
+                
                 return data
             }
             .decode(type: MeditationResponseWithParagraphs.self, decoder: JSONDecoder())
@@ -180,12 +272,33 @@ class SupabaseService {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         
-        return URLSession.shared.dataTaskPublisher(for: request)
+        return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
+                guard let httpResponse = response as? HTTPURLResponse else {
                     throw URLError(.badServerResponse)
                 }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Try to extract error message from response
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = errorData["error"] as? String {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                    } else {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
+                    }
+                }
+                
+                // Log response for debugging
+                #if DEBUG
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("API Response: \(responseString)")
+                }
+                #endif
+                
                 return data
             }
             .decode(type: [PodcastEntry].self, decoder: decoder)
@@ -219,12 +332,33 @@ class SupabaseService {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         
-        return URLSession.shared.dataTaskPublisher(for: request)
+        return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
+                guard let httpResponse = response as? HTTPURLResponse else {
                     throw URLError(.badServerResponse)
                 }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Try to extract error message from response
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = errorData["error"] as? String {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                    } else {
+                        throw NSError(domain: "SupabaseErrorDomain", 
+                                     code: httpResponse.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
+                    }
+                }
+                
+                // Log response for debugging
+                #if DEBUG
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("API Response: \(responseString)")
+                }
+                #endif
+                
                 return data
             }
             .decode(type: PodcastEntry.self, decoder: decoder)
@@ -239,7 +373,16 @@ struct ChatResponse: Codable {
 }
 
 struct InspirationResponse: Codable {
-    let inspiration: String
+    let title: String
+    let content: String
+    let verse: String
+    let verse_content: String
+    let theme: String
+    let image_url: String
+    
+    var inspiration: String {
+        return content
+    }
 }
 
 struct MeditationResponse: Codable {
