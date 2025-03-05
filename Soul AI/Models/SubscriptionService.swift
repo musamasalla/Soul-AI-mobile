@@ -30,8 +30,10 @@ struct MockSubscriptionProduct {
                 ])
                 
                 if !products.isEmpty {
+                    // Fix for Swift 6 concurrency warning - use local variable first
+                    let loadedProducts = products
                     await MainActor.run {
-                        mockProducts = products
+                        self.mockProducts = loadedProducts
                     }
                 }
             } catch {
@@ -154,7 +156,7 @@ class SubscriptionService: NSObject, ObservableObject {
                     await updateSubscriptionTier(for: product.id)
                     await transaction.finish()
                     return true
-                case .unverified(let transaction):
+                case .unverified:
                     // For testing, accept unverified transactions too
                     #if DEBUG
                     print("Accepting unverified transaction in debug mode")
@@ -190,7 +192,10 @@ class SubscriptionService: NSObject, ObservableObject {
             return true
             #endif
             
+            // This code will never be executed in DEBUG mode, but is needed for RELEASE
+            #if !DEBUG
             throw error
+            #endif
         }
     }
     
