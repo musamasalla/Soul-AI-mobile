@@ -132,7 +132,7 @@ class PodcastViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // Generate premium podcast using NotebookLM
+    // Generate premium podcast using OpenAI
     func generatePremiumPodcast() {
         guard UserPreferences().isSubscriptionActive else {
             errorMessage = "Premium subscription required for advanced podcasts."

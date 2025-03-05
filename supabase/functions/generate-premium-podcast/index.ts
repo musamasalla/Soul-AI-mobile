@@ -2,8 +2,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import { corsHeaders } from '../_shared/cors.ts'
 
-const NOTEBOOKLM_API_KEY = Deno.env.get('NOTEBOOKLM_API_KEY')
-const NOTEBOOKLM_API_URL = 'https://notebooklm.googleapis.com/v1/models/notebooklm:generateContent'
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 const supabaseUrl = Deno.env.get('API_SUPABASE_URL')
 const supabaseServiceKey = Deno.env.get('API_SUPABASE_KEY')
 
@@ -32,7 +32,7 @@ serve(async (req) => {
       )
     }
 
-    // Build the prompt for NotebookLM
+    // Build the prompt for OpenAI
     let prompt = `Create a Christian podcast script on the topic of "${topic}". `
     
     if (scriptureReferences) {
@@ -43,50 +43,53 @@ serve(async (req) => {
     prompt += `Format the response with a title, introduction, main content with sections, and conclusion. `
     prompt += `The content should be spiritually enriching, conversational in tone, and include thought-provoking questions and insights.`
 
-    // In development mode, return mock data
-    if (!NOTEBOOKLM_API_KEY) {
-      console.log('No NotebookLM API key found, returning mock data')
+    // In development mode or if no API key, return mock data
+    if (!OPENAI_API_KEY) {
+      console.log('No OpenAI API key found, returning mock data')
       return new Response(
         JSON.stringify(generateMockPodcast(topic, scriptureReferences, duration)),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Call NotebookLM API
-    const response = await fetch(NOTEBOOKLM_API_URL, {
+    // Call OpenAI API
+    const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${NOTEBOOKLM_API_KEY}`
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        contents: [
+        model: "gpt-4",
+        messages: [
           {
-            role: 'user',
-            parts: [{ text: prompt }]
+            role: "system",
+            content: "You are a Christian podcast creator who specializes in creating spiritually enriching content. Format your response with markdown headings and sections."
+          },
+          {
+            role: "user",
+            content: prompt
           }
         ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4096,
-        }
+        temperature: 0.7,
+        max_tokens: 4000
       })
     })
 
     if (!response.ok) {
       const errorData = await response.text()
-      console.error('NotebookLM API error:', errorData)
-      throw new Error(`NotebookLM API error: ${response.status}`)
+      console.error('OpenAI API error:', errorData)
+      throw new Error(`OpenAI API error: ${response.status}`)
     }
 
     const data = await response.json()
-    const content = data.candidates[0].content.parts[0].text
+    const content = data.choices[0].message.content
 
     // Extract title and content
     const titleMatch = content.match(/^#*\s*(.*?)(?:\n|$)/)
     const title = titleMatch ? titleMatch[1].replace(/[#*]/g, '').trim() : 'Christian Podcast'
     
-    // Remove the title from the content
+    // Remove the title from the content if it's at the beginning
     const podcastContent = content.replace(/^#*\s*(.*?)(?:\n|$)/, '').trim()
 
     return new Response(

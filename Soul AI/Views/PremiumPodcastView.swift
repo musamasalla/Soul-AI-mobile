@@ -20,7 +20,7 @@ struct PremiumPodcastView: View {
                     .foregroundColor(.brandMint)
                     .padding(.horizontal)
                 
-                Text("Create long-form Christian podcasts powered by Google's NotebookLM")
+                Text("Create long-form Christian podcasts powered by advanced AI")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
