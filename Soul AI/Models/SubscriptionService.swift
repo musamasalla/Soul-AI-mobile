@@ -16,9 +16,10 @@ struct MockSubscriptionProduct {
     let price: Decimal
     let displayPrice: String
     
+    static var mockProducts: [Product] = []
+    
     static func createMockProducts() -> [Product] {
         // Create mock products using StoreKit's testing API
-        var mockProducts: [Product] = []
         
         // Use the StoreKit testing configuration to create products
         Task {
@@ -33,7 +34,7 @@ struct MockSubscriptionProduct {
                     // Fix for Swift 6 concurrency warning - use local variable first
                     let loadedProducts = products
                     await MainActor.run {
-                        self.mockProducts = loadedProducts
+                        mockProducts = loadedProducts
                     }
                 }
             } catch {
