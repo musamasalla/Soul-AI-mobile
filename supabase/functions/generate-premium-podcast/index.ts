@@ -1,10 +1,12 @@
+// Deno-specific imports - these will work in the Supabase Edge Functions environment
+// but may show as errors in local development environments
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// Use Claude API for more cost-effective generation
-const CLAUDE_API_KEY = Deno.env.get('CLAUDE_API_KEY')
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
+// Use OpenAI API for generation, similar to the free version
+// Deno.env is available in the Supabase Edge Functions environment
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
 const supabaseUrl = Deno.env.get('API_SUPABASE_URL')
 const supabaseServiceKey = Deno.env.get('API_SUPABASE_KEY')
 
@@ -29,7 +31,7 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, duration, scriptureReferences, isPremium } = await req.json()
+    const { topic, duration, scriptureReferences, isPremium, contentType = 'bible_study' } = await req.json()
 
     // Validate premium status
     if (!isPremium) {
@@ -54,141 +56,186 @@ serve(async (req) => {
         "");
 
     // In development mode or if no API key, return mock data
-    if (!CLAUDE_API_KEY) {
-      console.log('No Claude API key found, returning mock data')
+    if (!OPENAI_API_KEY) {
+      console.log('No OpenAI API key found, returning mock data')
       return new Response(
-        JSON.stringify(generateMockPodcast(topic, scriptures, duration)),
+        JSON.stringify(generateMockPodcast(topic, scriptures, duration, contentType)),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Generate podcast using a hybrid approach
-    // 1. Use a template for structure
-    // 2. Use Claude API for specific content sections
+    // Adjust prompts based on content type
+    const isLongForm = contentType === 'longform_podcast';
+    const contentTypeLabel = isLongForm ? 'podcast' : 'Bible study';
     
-    // First, generate the introduction using Claude
-    const introPrompt = `Write a brief introduction (2-3 paragraphs) for a Christian podcast about ${topic}.
-    If relevant, reference these scriptures: ${scriptures}.
-    The introduction should be warm, inviting, and set up the topic in a way that engages Christian listeners.
-    Keep it concise but impactful.`;
+    // Generate the complete script using OpenAI
+    const script = await generateScript(topic, scriptures, isLongForm, contentTypeLabel, duration);
     
-    const introResponse = await fetch(CLAUDE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: "claude-instant-1.2",
-        max_tokens: 500,
-        messages: [
-          { role: "user", content: introPrompt }
-        ]
-      })
-    });
-
-    if (!introResponse.ok) {
-      throw new Error(`Claude API error: ${introResponse.status}`);
-    }
-
-    const introData = await introResponse.json();
-    const introduction = introData.content[0].text;
-
-    // Next, generate the main content sections using Claude
-    const mainContentPrompt = `Create 3 main sections for a Christian podcast about ${topic}.
-    If relevant, incorporate these scriptures: ${scriptures}.
-    For each section:
-    1. Provide a clear subheading
-    2. Write 2-3 paragraphs of content
-    3. Include at least one practical application point
+    // Generate metadata (title, description) from the script
+    const metadata = await generateMetadata(script, topic);
     
-    Format with markdown headings (##) for each section.
-    The content should be spiritually enriching and biblically sound.`;
+    // Generate audio from the script
+    const audioBuffer = await generateAudio(script);
     
-    const mainContentResponse = await fetch(CLAUDE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: "claude-instant-1.2",
-        max_tokens: 1500,
-        messages: [
-          { role: "user", content: mainContentPrompt }
-        ]
-      })
-    });
-
-    if (!mainContentResponse.ok) {
-      throw new Error(`Claude API error: ${mainContentResponse.status}`);
-    }
-
-    const mainContentData = await mainContentResponse.json();
-    const mainContent = mainContentData.content[0].text;
-
-    // Finally, generate the conclusion using Claude
-    const conclusionPrompt = `Write a conclusion (1-2 paragraphs) for a Christian podcast about ${topic}.
-    If relevant, reference these scriptures: ${scriptures}.
-    The conclusion should summarize key points, offer a final encouragement, and include a brief prayer or blessing.
-    Keep it concise but meaningful.`;
-    
-    const conclusionResponse = await fetch(CLAUDE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: "claude-instant-1.2",
-        max_tokens: 500,
-        messages: [
-          { role: "user", content: conclusionPrompt }
-        ]
-      })
-    });
-
-    if (!conclusionResponse.ok) {
-      throw new Error(`Claude API error: ${conclusionResponse.status}`);
-    }
-
-    const conclusionData = await conclusionResponse.json();
-    const conclusion = conclusionData.content[0].text;
-
-    // Assemble the complete podcast content
-    const title = `The Christian Journey: ${topic}`;
-    const podcastDuration = duration || 15;
-    
-    const content = `# Introduction (${Math.floor(podcastDuration * 0.2)} minutes)\n\n${introduction}\n\n` +
-                   `# Main Content (${Math.floor(podcastDuration * 0.6)} minutes)\n\n${mainContent}\n\n` +
-                   `# Conclusion (${Math.floor(podcastDuration * 0.2)} minutes)\n\n${conclusion}`;
-
+    // Return the response
     return new Response(
       JSON.stringify({
-        title,
-        content,
-        duration: podcastDuration
+        title: metadata.title,
+        content: script,
+        duration: duration || 15
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+    
   } catch (error) {
-    console.error('Error:', error.message)
+    console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || 'An error occurred during podcast generation' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })
 
-// Function to generate mock podcast data for development
-function generateMockPodcast(topic: string, scriptureReferences?: string, duration?: number) {
-  const podcastDuration = duration || 15
-  const title = `The Christian Journey: ${topic}`
+// Generate script using OpenAI
+async function generateScript(topic, scriptureReferences, isLongForm, contentTypeLabel, duration) {
+  console.log('Generating premium podcast script...');
   
-  let content = `# Introduction (${Math.floor(podcastDuration * 0.2)} minutes)\n\nWelcome to "The Christian Journey," where we explore faith in everyday life. I'm your host, and today we're diving into the topic of ${topic}. `
+  // Prepare the content prompt based on whether scripture references are provided
+  let contentPrompt = `Create a premium ${contentTypeLabel} script about ${topic}.`;
+  if (scriptureReferences && scriptureReferences.trim() !== '') {
+    contentPrompt = `Create a premium ${contentTypeLabel} script about ${topic} with a focus on ${scriptureReferences}.`;
+  }
+  
+  if (isLongForm) {
+    contentPrompt += ` This should be a longer, more in-depth ${contentTypeLabel} of approximately ${duration || 15} minutes when spoken.`;
+  } else {
+    contentPrompt += ` This should be a concise ${contentTypeLabel} of approximately ${duration || 15} minutes when spoken.`;
+  }
+  
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a knowledgeable Bible study podcast host. Create an engaging and insightful discussion about the specified topic. Include:
+            1. A warm welcome and introduction
+            2. Historical and biblical context
+            3. Key verses and their meaning
+            4. Theological insights
+            5. Life applications
+            6. Reflection questions
+            ${isLongForm ? 'This is a premium long-form podcast, so provide more depth, examples, and theological insights than a standard Bible study.' : 'This is a premium Bible study, so provide more depth and theological insights than a standard Bible study.'}
+            ${isLongForm ? `Structure the content for a ${duration || 15}-minute podcast.` : `Keep the content around ${duration || 15} minutes when spoken.`}`
+        },
+        {
+          role: 'user',
+          content: contentPrompt
+        }
+      ],
+      temperature: 0.7
+    })
+  });
+  
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('OpenAI script generation error:', errorBody);
+    throw new Error(`Failed to generate script: ${response.status} ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+// Generate metadata using OpenAI
+async function generateMetadata(script, topic) {
+  console.log('Generating metadata...');
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'Extract a concise title and brief description from the provided podcast script. Return only a JSON object with "title" and "description" fields.'
+        },
+        {
+          role: 'user',
+          content: `Generate a title and description for this Bible study about ${topic}: ${script.substring(0, 1000)}...`
+        }
+      ],
+      temperature: 0.3
+    })
+  });
+  
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('OpenAI metadata generation error:', errorBody);
+    throw new Error(`Failed to generate metadata: ${response.status} ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  let metadata;
+  try {
+    metadata = JSON.parse(data.choices[0].message.content);
+  } catch (error) {
+    const jsonMatch = data.choices[0].message.content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      metadata = JSON.parse(jsonMatch[0]);
+    } else {
+      // Fallback if parsing fails
+      metadata = {
+        title: `Premium Bible Study: ${topic}`,
+        description: `A premium Bible study exploring ${topic} from a Christian perspective.`
+      };
+    }
+  }
+  return metadata;
+}
+
+// Generate audio using OpenAI
+async function generateAudio(script) {
+  console.log('Generating audio...');
+  const response = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'tts-1-hd',  // Using the HD model for premium quality
+      voice: 'onyx',
+      input: script
+    })
+  });
+  
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('OpenAI audio generation error:', errorBody);
+    throw new Error(`Failed to generate audio: ${response.status} ${response.statusText}`);
+  }
+  
+  return response.arrayBuffer();
+}
+
+// Mock podcast generator for development/testing
+function generateMockPodcast(topic, scriptureReferences, duration = 15, contentType = 'bible_study') {
+  const isLongForm = contentType === 'longform_podcast';
+  const podcastDuration = duration || (isLongForm ? 15 : 5);
+  const title = isLongForm ? 
+    `The Christian Journey: ${topic}` : 
+    `Premium Bible Study: ${topic}`;
+  
+  let content = `# Introduction (${Math.floor(podcastDuration * 0.2)} minutes)\n\nWelcome to "${isLongForm ? 'The Christian Journey' : 'Premium Bible Study'}," where we explore faith in everyday life. I'm your host, and today we're diving into the topic of ${topic}. `
   
   if (scriptureReferences) {
     content += `We'll be reflecting on ${scriptureReferences} and how these scriptures guide us in our understanding of ${topic}.\n\n`
@@ -220,7 +267,7 @@ function generateMockPodcast(topic: string, scriptureReferences?: string, durati
   content += `# Conclusion (${Math.floor(podcastDuration * 0.2)} minutes)\n\n`
   content += `As we conclude our discussion on ${topic}, I encourage you to reflect on how God is calling you to grow in this area. `
   content += `Remember that spiritual growth is a journey, not a destination. Each step we take in faith brings us closer to becoming who God created us to be.\n\n`
-  content += `Thank you for joining me today on "The Christian Journey." Until next time, may God bless you and keep you in His perfect peace.`
+  content += `Thank you for joining me today on "${isLongForm ? 'The Christian Journey' : 'Premium Bible Study'}." Until next time, may God bless you and keep you in His perfect peace.`
   
   return {
     title,

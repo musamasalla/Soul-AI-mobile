@@ -88,64 +88,78 @@ class PodcastViewModel: ObservableObject {
         errorMessage = nil
         
         // Create request body
-        let requestBody: [String: Any] = [
-            "topic": selectedTopic,
-            "duration": 5 // Basic podcasts can range from 1-5 minutes, controlled by the backend
+        // Note: The backend expects a bibleChapter parameter, but our UI now uses topics.
+        // We're passing the selected topic as the bibleChapter to maintain compatibility
+        // with the backend while using the new topic-based UI.
+        var requestBody: [String: Any] = [
+            "bibleChapter": selectedTopic, // Using topic as the Bible study subject
+            "initialRequest": true
         ]
         
-        SupabaseService.shared.generatePremiumPodcast(requestBody: requestBody)
+        // Add scripture references if provided (for premium users)
+        if !scriptureReferences.isEmpty {
+            requestBody["scriptureReferences"] = scriptureReferences
+        }
+        
+        SupabaseService.shared.generateBibleStudy(bibleChapter: selectedTopic, scriptureReferences: scriptureReferences)
             .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] (completion: Subscribers.Completion<Error>) in
+            .sink(receiveCompletion: { [weak self] completion in
                 guard let self = self else { return }
                 
                 if case .failure(let error) = completion {
                     print("Error generating podcast: \(error.localizedDescription)")
-                    self.errorMessage = "Failed to generate podcast. Please try again."
-                    
-                    // Use fallback content
-                    self.podcast = Podcast(
-                        title: "Podcast on \(self.selectedTopic)",
-                        content: "Welcome to Soul AI. Today we're discussing \(self.selectedTopic) and how it relates to our Christian walk.",
-                        duration: 5
-                    )
+                    self.errorMessage = "Failed to generate Bible study. Please try again."
                 }
                 
                 self.isLoading = false
-            }, receiveValue: { [weak self] (response: PodcastResponse) in
+            }, receiveValue: { [weak self] podcastEntry in
                 guard let self = self else { return }
                 
-                // Clean up title but preserve formatting for content
-                var title = response.title
-                title = title.replacingOccurrences(of: "###", with: "")
-                title = title.replacingOccurrences(of: "**", with: "")
-                title = title.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                // Add the new podcast to our list
+                self.podcasts.insert(podcastEntry, at: 0)
                 
-                // Create podcast object
-                self.podcast = Podcast(
-                    title: title,
-                    content: response.content,
-                    duration: 5 // Fixed at 5 minutes for free Bible studies
-                )
+                // If the podcast is still generating, add it to pending list and start polling
+                if podcastEntry.status == .generating {
+                    self.pendingPodcastIds.insert(podcastEntry.id)
+                    self.startPolling()
+                }
                 
-                self.showPodcast = true
+                self.isLoading = false
             })
             .store(in: &cancellables)
     }
     
     // Generate premium podcast using a hybrid template system with Claude
-    func generatePremiumPodcast() {
+    func generatePremiumPodcast(isLongForm: Bool = false) {
         guard UserPreferences().isSubscriptionActive else {
-            errorMessage = "Premium subscription required for advanced podcasts."
+            errorMessage = "Premium subscription required for advanced content."
             return
         }
         
         isLoading = true
         errorMessage = nil
         
-        // Create request body with all premium options
+        // Set scripture references based on selected testament/book/chapter if not already set
+        if scriptureReferences.isEmpty && !selectedBook.isEmpty && !selectedChapter.isEmpty {
+            scriptureReferences = "\(selectedBook) \(selectedChapter)"
+        }
+        
+        if isLongForm {
+            // Use the long-form podcast edge function
+            generateLongFormPodcast()
+        } else {
+            // For premium Bible studies, use the same function as free Bible studies
+            // but include scripture references
+            generatePodcast()
+        }
+    }
+    
+    // Generate long-form podcast using NotebookLM (separate edge function)
+    private func generateLongFormPodcast() {
+        // Create request body for long-form podcast
         var requestBody: [String: Any] = [
             "topic": selectedTopic,
-            "duration": podcastDuration, // Use variable duration for premium podcasts
+            "duration": podcastDuration,
             "isPremium": true
         ]
         
@@ -183,6 +197,11 @@ class PodcastViewModel: ObservableObject {
                 mockContent += "The Bible reminds us that our approach to \(self.selectedTopic) should be aligned with God's will and purpose for our lives.\n\n"
             }
             
+            mockContent += "## Historical Context and Theological Significance\n\n"
+            mockContent += "Throughout church history, Christian thinkers and theologians have reflected deeply on \(self.selectedTopic). "
+            mockContent += "From Augustine to C.S. Lewis, we see a rich tradition of wrestling with what it means to understand \(self.selectedTopic) through the lens of faith. "
+            mockContent += "This historical perspective helps us see that our own questions and struggles with \(self.selectedTopic) are part of a long conversation within the Christian tradition.\n\n"
+            
             mockContent += "## Practical Application\n\n"
             mockContent += "How can we apply these biblical principles about \(self.selectedTopic) in our daily lives? First, we need to pray for guidance and wisdom. "
             mockContent += "Second, we should seek community and accountability with other believers. And third, we must be intentional about aligning our actions with our faith.\n\n"
@@ -207,14 +226,14 @@ class PodcastViewModel: ObservableObject {
         }
         #else
         // Original code for production
-        SupabaseService.shared.generatePremiumPodcast(requestBody: requestBody)
+        SupabaseService.shared.generateLongFormPodcast(requestBody: requestBody)
             .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] (completion: Subscribers.Completion<Error>) in
+            .sink(receiveCompletion: { [weak self] completion in
                 guard let self = self else { return }
                 
                 if case .failure(let error) = completion {
-                    print("Error generating premium podcast: \(error.localizedDescription)")
-                    self.errorMessage = "Failed to generate podcast. Please try again."
+                    print("Error generating long-form podcast: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to generate long-form podcast. Please try again."
                     
                     // Use fallback content
                     self.podcast = Podcast(
@@ -225,7 +244,7 @@ class PodcastViewModel: ObservableObject {
                 }
                 
                 self.isLoading = false
-            }, receiveValue: { [weak self] (podcast: PodcastResponse) in
+            }, receiveValue: { [weak self] podcast in
                 guard let self = self else { return }
                 
                 // Clean up title but preserve formatting for content

@@ -67,8 +67,8 @@ struct AudioWaveAnimation: View {
                 resetToWavePattern(animated: false)
             }
         }
-        .onChange(of: isPlaying) { oldValue, newValue in
-            if newValue {
+        .onChange(of: isPlaying) { 
+            if isPlaying {
                 startAnimation()
             } else {
                 resetToWavePattern(animated: true)
