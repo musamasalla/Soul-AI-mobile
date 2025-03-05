@@ -33,6 +33,22 @@ struct SubscriptionView: View {
                     // Current subscription status
                     currentSubscriptionStatus
                     
+                    // Direct purchase button for testing
+                    Button(action: {
+                        Task {
+                            await purchaseDirectly()
+                        }
+                    }) {
+                        Text("Test Purchase Premium (StoreKit Testing)")
+                            .font(.headline)
+                            .foregroundColor(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.brandMint)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    
                     // Subscription plans
                     subscriptionPlans
                     
@@ -269,6 +285,50 @@ struct SubscriptionView: View {
         do {
             try await subscriptionService.restorePurchases()
             isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+    
+    // Direct purchase method for testing
+    private func purchaseDirectly() async {
+        isLoading = true
+        do {
+            // Create a direct purchase for the premium product ID
+            let productID = SubscriptionProduct.premium.rawValue
+            
+            // Try to find the product in the loaded products
+            if let product = subscriptionService.products.first(where: { $0.id == productID }) {
+                let success = try await subscriptionService.purchase(product)
+                isLoading = false
+                
+                if success {
+                    // Dismiss the view after successful purchase
+                    DispatchQueue.main.async {
+                        dismiss()
+                    }
+                }
+            } else {
+                // If product isn't loaded, try to load it directly
+                let products = try await Product.products(for: [productID])
+                if let product = products.first {
+                    let success = try await subscriptionService.purchase(product)
+                    isLoading = false
+                    
+                    if success {
+                        // Dismiss the view after successful purchase
+                        DispatchQueue.main.async {
+                            dismiss()
+                        }
+                    }
+                } else {
+                    isLoading = false
+                    errorMessage = "Could not find premium product"
+                    showError = true
+                }
+            }
         } catch {
             isLoading = false
             errorMessage = error.localizedDescription
