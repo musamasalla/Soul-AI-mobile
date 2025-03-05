@@ -159,7 +159,7 @@ class SubscriptionService: NSObject, ObservableObject {
                     #if DEBUG
                     print("Accepting unverified transaction in debug mode")
                     await updateSubscriptionTier(for: product.id)
-                    await transaction.finish()
+                    // We can't finish an unverified transaction, but we can still update the subscription
                     return true
                     #else
                     // Transaction failed verification
