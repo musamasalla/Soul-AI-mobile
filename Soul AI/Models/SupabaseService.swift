@@ -408,6 +408,49 @@ class SupabaseService {
             }
             .eraseToAnyPublisher()
     }
+    
+    // MARK: - Premium Podcast API
+    
+    func generatePremiumPodcast(requestBody: [String: Any]) -> AnyPublisher<PodcastResponse, Error> {
+        guard let url = URL(string: SupabaseConfig.premiumPodcastEndpoint) else {
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+        
+        return session.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw URLError(.badServerResponse)
+                }
+                
+                if httpResponse.statusCode == 403 {
+                    throw NSError(domain: "SubscriptionError", code: 403, userInfo: [
+                        NSLocalizedDescriptionKey: "Premium subscription required for this feature"
+                    ])
+                }
+                
+                if !(200...299).contains(httpResponse.statusCode) {
+                    throw URLError(.badServerResponse)
+                }
+                
+                return data
+            }
+            .decode(type: PodcastResponse.self, decoder: JSONDecoder())
+            .eraseToAnyPublisher()
+    }
 }
 
 // MARK: - Response Models

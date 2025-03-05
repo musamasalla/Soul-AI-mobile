@@ -81,6 +81,24 @@ struct ContentView: View {
                         Label("Bible Study", systemImage: "book.fill")
                     }
                     .tag(3)
+                    
+                    // Premium Podcast Tab (only visible for premium subscribers)
+                    if preferences.isSubscriptionActive {
+                        NavigationView {
+                            PremiumPodcastView()
+                                .navigationBarItems(trailing: Button(action: {
+                                    showSettings = true
+                                }) {
+                                    Image(systemName: "gear")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.brandMint)
+                                })
+                        }
+                        .tabItem {
+                            Label("Premium", systemImage: "crown.fill")
+                        }
+                        .tag(4)
+                    }
                 }
                 .sheet(isPresented: $showSettings) {
                     SettingsView(preferences: preferences)

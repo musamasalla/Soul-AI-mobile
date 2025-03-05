@@ -18,11 +18,16 @@ struct Soul_AIApp: App {
             ContentView()
                 .environmentObject(preferences)
                 .environmentObject(subscriptionService)
-                .onAppear {
+                .task {
                     #if DEBUG
+                    // Set up StoreKit testing configuration
                     if let url = Bundle.main.url(forResource: "Subscriptions", withExtension: "storekit") {
-                        try? SKPaymentQueue.default().add(SKPaymentQueueHandler(storefront: .default))
-                        try? SKAdministrativeCenter.default().loadStorefrontForTesting(from: url)
+                        // Simply log that we found the configuration file
+                        // The StoreKit testing environment should automatically use it
+                        // if it's included in the app bundle
+                        print("StoreKit configuration file found at: \(url)")
+                    } else {
+                        print("StoreKit configuration file not found")
                     }
                     #endif
                 }

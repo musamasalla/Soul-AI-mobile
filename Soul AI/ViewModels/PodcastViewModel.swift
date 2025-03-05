@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AVFoundation
+import UIKit
 
 class PodcastViewModel: ObservableObject {
     @Published var podcasts: [PodcastEntry] = []
@@ -12,6 +13,12 @@ class PodcastViewModel: ObservableObject {
     
     @Published var isPlaying: Bool = false
     @Published var currentPodcastId: String? = nil
+    
+    @Published var selectedTopic: String = "Faith"
+    @Published var scriptureReferences: String = ""
+    @Published var podcastDuration: Int = 15
+    @Published var podcast: Podcast?
+    @Published var showPodcast: Bool = false
     
     private var cancellables = Set<AnyCancellable>()
     private var audioPlayer: AVPlayer?
@@ -77,83 +84,155 @@ class PodcastViewModel: ObservableObject {
     }
     
     func generatePodcast() {
-        guard !selectedBook.isEmpty, !selectedChapter.isEmpty else { return }
-        
         isLoading = true
         errorMessage = nil
-        let bibleChapter = "\(selectedBook) \(selectedChapter)"
         
-        // Create a temporary podcast entry to show in the UI while generating
-        let tempId = UUID().uuidString
-        let tempPodcast = PodcastEntry(
-            id: tempId,
-            title: "Generating Bible Study for \(bibleChapter)...",
-            description: "Please wait while we create your Bible study...",
-            chapter: bibleChapter,
-            audioUrl: nil,
-            status: .generating,
-            createdAt: Date()
-        )
+        // Create request body
+        let requestBody: [String: Any] = [
+            "topic": selectedTopic,
+            "duration": 5 // Basic podcasts are fixed at 5 minutes
+        ]
         
-        // Add the temporary podcast to the list
-        self.podcasts.insert(tempPodcast, at: 0)
-        
-        SupabaseService.shared.generateBibleStudy(bibleChapter: bibleChapter)
+        SupabaseService.shared.generatePodcast(requestBody: requestBody)
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
                 guard let self = self else { return }
                 
                 if case .failure(let error) = completion {
                     print("Error generating podcast: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to generate podcast. Please try again."
                     
-                    // Provide more specific error messages based on error type
-                    let errorMsg: String
-                    if let urlError = error as? URLError, urlError.code == .timedOut {
-                        errorMsg = "The request timed out. The Bible study generation is taking longer than expected. Please try again later."
-                    } else if (error as NSError).domain == NSURLErrorDomain && (error as NSError).code == -1001 {
-                        // -1001 is also a timeout error
-                        errorMsg = "The request timed out. The Bible study generation is taking longer than expected. Please try again later."
-                    } else {
-                        errorMsg = "Failed to generate Bible study. Please try again."
-                    }
-                    
-                    self.errorMessage = errorMsg
-                    
-                    // Remove the temporary podcast
-                    self.podcasts.removeAll { $0.id == tempId }
-                    
-                    // Create a fallback podcast with error status
-                    let fallbackPodcast = PodcastEntry(
-                        id: UUID().uuidString,
-                        title: "Bible Study on \(bibleChapter)",
-                        description: "There was an error generating this Bible study. Please try again.",
-                        chapter: bibleChapter,
-                        audioUrl: nil,
-                        status: .failed,
-                        createdAt: Date()
+                    // Use fallback content
+                    self.podcast = Podcast(
+                        title: "Podcast on \(self.selectedTopic)",
+                        content: "Welcome to Soul AI. Today we're discussing \(self.selectedTopic) and how it relates to our Christian walk.",
+                        duration: 5
                     )
+                }
+                
+                self.isLoading = false
+            }, receiveValue: { [weak self] response in
+                guard let self = self else { return }
+                
+                // Clean up title but preserve formatting for content
+                var title = response.title
+                title = title.replacingOccurrences(of: "###", with: "")
+                title = title.replacingOccurrences(of: "**", with: "")
+                title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                // Create podcast object
+                self.podcast = Podcast(
+                    title: title,
+                    content: response.content,
+                    duration: response.duration > 0 ? response.duration : 5
+                )
+                
+                self.showPodcast = true
+            })
+            .store(in: &cancellables)
+    }
+    
+    // Generate premium podcast using NotebookLM
+    func generatePremiumPodcast() {
+        guard UserPreferences().isSubscriptionActive else {
+            errorMessage = "Premium subscription required for advanced podcasts."
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        // Create request body with all premium options
+        var requestBody: [String: Any] = [
+            "topic": selectedTopic,
+            "duration": podcastDuration,
+            "isPremium": true
+        ]
+        
+        // Add scripture references if provided
+        if !scriptureReferences.isEmpty {
+            requestBody["scriptureReferences"] = scriptureReferences
+        }
+        
+        // DEVELOPMENT MODE: Use local mock instead of calling Supabase
+        #if DEBUG
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self = self else { return }
+            
+            // Create a mock podcast based on user inputs
+            let mockTitle = "The Christian Journey: \(self.selectedTopic)"
+            
+            var mockContent = "# Introduction (2 minutes)\n\nWelcome to \"The Christian Journey,\" where we explore faith in everyday life. I'm your host, and today we're diving into the topic of \(self.selectedTopic). "
+            
+            if !self.scriptureReferences.isEmpty {
+                mockContent += "We'll be reflecting on \(self.scriptureReferences) and how these scriptures guide us in our understanding of \(self.selectedTopic).\n\n"
+            } else {
+                mockContent += "We'll be exploring what the Bible teaches us about \(self.selectedTopic) and how we can apply these teachings in our daily lives.\n\n"
+            }
+            
+            mockContent += "# Main Content (\(Int(Double(self.podcastDuration) * 0.7)) minutes)\n\n"
+            mockContent += "## Understanding \(self.selectedTopic) from a Biblical Perspective\n\n"
+            mockContent += "When we think about \(self.selectedTopic) in the context of our faith, we must consider how God views this aspect of our lives. "
+            mockContent += "The Bible provides us with guidance through various passages and stories that illuminate God's perspective on \(self.selectedTopic).\n\n"
+            
+            if !self.scriptureReferences.isEmpty {
+                mockContent += "Looking at \(self.scriptureReferences), we can see that God values \(self.selectedTopic) as an essential part of our spiritual growth. "
+                mockContent += "These verses remind us that our approach to \(self.selectedTopic) should be aligned with God's will and purpose for our lives.\n\n"
+            } else {
+                mockContent += "Throughout scripture, we see examples of how God values \(self.selectedTopic) as an essential part of our spiritual growth. "
+                mockContent += "The Bible reminds us that our approach to \(self.selectedTopic) should be aligned with God's will and purpose for our lives.\n\n"
+            }
+            
+            mockContent += "## Practical Application\n\n"
+            mockContent += "How can we apply these biblical principles about \(self.selectedTopic) in our daily lives? First, we need to pray for guidance and wisdom. "
+            mockContent += "Second, we should seek community and accountability with other believers. And third, we must be intentional about aligning our actions with our faith.\n\n"
+            
+            mockContent += "## Challenges and Growth\n\n"
+            mockContent += "Of course, living out our faith in the area of \(self.selectedTopic) isn't always easy. We face challenges from cultural pressures, our own weaknesses, and spiritual warfare. "
+            mockContent += "But these challenges are opportunities for growth and deeper reliance on God's strength rather than our own.\n\n"
+            
+            mockContent += "# Conclusion (\(Int(Double(self.podcastDuration) * 0.2)) minutes)\n\n"
+            mockContent += "As we conclude our discussion on \(self.selectedTopic), I encourage you to reflect on how God is calling you to grow in this area. "
+            mockContent += "Remember that spiritual growth is a journey, not a destination. Each step we take in faith brings us closer to becoming who God created us to be.\n\n"
+            mockContent += "Thank you for joining me today on \"The Christian Journey.\" Until next time, may God bless you and keep you in His perfect peace."
+            
+            self.podcast = Podcast(
+                title: mockTitle,
+                content: mockContent,
+                duration: self.podcastDuration
+            )
+            
+            self.isLoading = false
+            self.showPodcast = true
+        }
+        #else
+        // Original code for production
+        SupabaseService.shared.generatePremiumPodcast(requestBody: requestBody)
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { [weak self] completion in
+                guard let self = self else { return }
+                
+                if case .failure(let error) = completion {
+                    print("Error generating premium podcast: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to generate podcast. Please try again."
                     
-                    // Add the fallback podcast to the list
-                    self.podcasts.insert(fallbackPodcast, at: 0)
+                    // Use fallback content
+                    self.podcast = Podcast(
+                        title: "Premium Podcast on \(self.selectedTopic)",
+                        content: "Welcome to Soul AI Premium. Today we're discussing \(self.selectedTopic) and how it relates to our Christian walk.",
+                        duration: self.podcastDuration
+                    )
                 }
                 
                 self.isLoading = false
             }, receiveValue: { [weak self] podcast in
                 guard let self = self else { return }
                 
-                // Remove the temporary podcast
-                self.podcasts.removeAll { $0.id == tempId }
-                
-                // Add the new podcast to the list
-                self.podcasts.insert(podcast, at: 0)
-                
-                // If the podcast is still generating, add it to pending list and start polling
-                if podcast.status == .generating {
-                    self.pendingPodcastIds.insert(podcast.id)
-                    self.startPolling()
-                }
+                self.podcast = podcast
+                self.showPodcast = true
             })
             .store(in: &cancellables)
+        #endif
     }
     
     // Start polling for updates to pending podcasts
