@@ -66,9 +66,9 @@ struct ContentView: View {
                     }
                     .tag(2)
                     
-                    // Bible Study (Podcast) Tab
+                    // Bible Study Tab
                     NavigationView {
-                        PodcastView()
+                        BibleStudyView()
                             .navigationBarItems(trailing: Button(action: {
                                 showSettings = true
                             }) {
