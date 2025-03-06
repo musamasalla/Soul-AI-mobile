@@ -4,7 +4,9 @@ struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var preferences: UserPreferences
+    @ObservedObject var authViewModel: AuthViewModel
     @State private var username: String = ""
+    @State private var showSignOutConfirmation = false
     
     var body: some View {
         // Extract the navigation view content to a separate variable
@@ -27,6 +29,15 @@ struct SettingsView: View {
         .onAppear {
             username = preferences.userName
         }
+        .alert("Sign Out", isPresented: $showSignOutConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Sign Out", role: .destructive) {
+                authViewModel.signOut()
+                presentationMode.wrappedValue.dismiss()
+            }
+        } message: {
+            Text("Are you sure you want to sign out?")
+        }
         
         return NavigationView {
             content
@@ -38,6 +49,9 @@ struct SettingsView: View {
         Form {
             // Profile section
             profileSection
+            
+            // Account section
+            accountSection
             
             // Subscription section
             subscriptionSection
@@ -75,6 +89,33 @@ struct SettingsView: View {
                     .onChange(of: username) { oldValue, newValue in
                         preferences.userName = newValue
                     }
+            }
+            
+            if let email = authViewModel.currentUser?.email {
+                HStack {
+                    Text("Email")
+                        .foregroundColor(.AppTheme.primaryText)
+                    Spacer()
+                    Text(email)
+                        .foregroundColor(Color.AppTheme.secondaryText)
+                }
+            }
+        }
+    }
+    
+    // Account section
+    private var accountSection: some View {
+        Section(header: Text("Account").foregroundColor(Color.AppTheme.brandMint)) {
+            Button(action: {
+                showSignOutConfirmation = true
+            }) {
+                HStack {
+                    Text("Sign Out")
+                        .foregroundColor(.red)
+                    Spacer()
+                    Image(systemName: "arrow.right.square")
+                        .foregroundColor(.red)
+                }
             }
         }
     }
@@ -313,5 +354,5 @@ struct TermsOfServiceView: View {
 }
 
 #Preview {
-    SettingsView(preferences: UserPreferences())
+    SettingsView(preferences: UserPreferences(), authViewModel: AuthViewModel())
 } 

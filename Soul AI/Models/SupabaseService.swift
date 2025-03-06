@@ -1,10 +1,12 @@
 import Foundation
 import Combine
+import Supabase
 
 class SupabaseService: SupabaseServiceProtocol {
     static let shared = SupabaseService()
     
     private let session: URLSession
+    private let supabase: SupabaseClient
     
     private init() {
         // Create a custom URLSession configuration with increased timeout
@@ -12,6 +14,12 @@ class SupabaseService: SupabaseServiceProtocol {
         configuration.timeoutIntervalForRequest = 60.0 // Increase timeout to 60 seconds
         configuration.timeoutIntervalForResource = 60.0
         self.session = URLSession(configuration: configuration)
+        
+        // Initialize Supabase client
+        self.supabase = SupabaseClient(
+            supabaseURL: URL(string: SupabaseConfig.supabaseUrl)!,
+            supabaseKey: SupabaseConfig.supabaseAnonKey
+        )
     }
     
     // MARK: - Chat API
@@ -542,204 +550,198 @@ class SupabaseService: SupabaseServiceProtocol {
     // MARK: - Authentication Methods
     
     func signUp(email: String, password: String) async -> Result<User, Error> {
-        // This would typically call Supabase auth.signUp
-        // For now, return a mock user
-        let mockUser = User(id: UUID().uuidString, email: email, name: "New User")
-        return .success(mockUser)
+        do {
+            let authResponse = try await supabase.auth.signUp(
+                email: email,
+                password: password
+            )
+            
+            guard let id = authResponse.user?.id.uuidString else {
+                return .failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to create user"]))
+            }
+            
+            let user = User(
+                id: id,
+                email: email,
+                name: email.components(separatedBy: "@").first ?? "User"
+            )
+            
+            return .success(user)
+        } catch {
+            return .failure(error)
+        }
     }
     
     func signIn(email: String, password: String) async -> Result<User, Error> {
-        // This would typically call Supabase auth.signIn
-        // For now, return a mock user
-        let mockUser = User(id: UUID().uuidString, email: email, name: "Existing User")
-        return .success(mockUser)
+        do {
+            let authResponse = try await supabase.auth.signIn(
+                email: email,
+                password: password
+            )
+            
+            guard let id = authResponse.user?.id.uuidString,
+                  let email = authResponse.user?.email else {
+                return .failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid user data"]))
+            }
+            
+            let user = User(
+                id: id,
+                email: email,
+                name: email.components(separatedBy: "@").first ?? "User"
+            )
+            
+            return .success(user)
+        } catch {
+            return .failure(error)
+        }
     }
     
     func signOut() async -> Result<Void, Error> {
-        // This would typically call Supabase auth.signOut
-        return .success(())
+        do {
+            try await supabase.auth.signOut()
+            return .success(())
+        } catch {
+            return .failure(error)
+        }
     }
     
     func resetPassword(email: String) async -> Result<Void, Error> {
-        // This would typically call Supabase auth.resetPasswordForEmail
-        return .success(())
+        do {
+            try await supabase.auth.resetPasswordForEmail(email)
+            return .success(())
+        } catch {
+            return .failure(error)
+        }
     }
     
     func getCurrentUser() async -> Result<User?, Error> {
-        // This would typically check Supabase auth.session()
-        // For now, return nil to indicate no user is logged in
-        return .success(nil)
+        do {
+            let session = try await supabase.auth.session
+            
+            guard let user = session?.user,
+                  let email = user.email else {
+                return .success(nil)
+            }
+            
+            let appUser = User(
+                id: user.id.uuidString,
+                email: email,
+                name: email.components(separatedBy: "@").first ?? "User"
+            )
+            
+            return .success(appUser)
+        } catch {
+            return .failure(error)
+        }
     }
     
     func updateUser(user: User) async -> Result<User, Error> {
-        // This would typically call Supabase auth.update
+        // In a real implementation, you would update the user's profile in Supabase
+        // For now, we'll just return the user as is
         return .success(user)
     }
     
     // MARK: - Subscription Methods
     
     func fetchSubscriptionStatus() async -> Result<SubscriptionStatus, Error> {
-        // This would typically fetch the subscription status from Supabase
-        // For now, return a mock subscription status
-        let mockStatus = SubscriptionStatus(
-            isActive: true,
-            tier: "premium",
-            expiresAt: Calendar.current.date(byAdding: .month, value: 1, to: Date())
-        )
-        return .success(mockStatus)
+        do {
+            // Check if user is authenticated
+            let userResult = await getCurrentUser()
+            
+            guard case .success(let user) = userResult, let user = user else {
+                return .success(SubscriptionStatus(isActive: false, tier: "free", expiresAt: nil))
+            }
+            
+            // Fetch subscription from Supabase
+            let response = try await supabase.database
+                .from("subscriptions")
+                .select()
+                .eq("user_id", value: user.id)
+                .eq("status", value: "active")
+                .single()
+                .execute()
+            
+            // Parse the response
+            if let data = response.data {
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                decoder.dateDecodingStrategy = .formatted(dateFormatter)
+                
+                let subscription = try decoder.decode(SubscriptionData.self, from: data)
+                
+                return .success(SubscriptionStatus(
+                    isActive: true,
+                    tier: subscription.tier,
+                    expiresAt: subscription.expiresAt
+                ))
+            } else {
+                // No active subscription found
+                return .success(SubscriptionStatus(isActive: false, tier: "free", expiresAt: nil))
+            }
+        } catch {
+            // For demo purposes, return a free subscription on error
+            return .success(SubscriptionStatus(isActive: false, tier: "free", expiresAt: nil))
+        }
+    }
+    
+    // Helper function to create a decoder with robust date handling
+    private func createDecoderWithRobustDateHandling() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        
+        // Create a custom date formatter that can handle multiple formats
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        
+        // Try multiple date formats
+        let dateFormats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        ]
+        
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+            
+            for format in dateFormats {
+                dateFormatter.dateFormat = format
+                if let date = dateFormatter.date(from: dateString) {
+                    return date
+                }
+            }
+            
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
+        }
+        
+        return decoder
     }
 }
 
 // MARK: - Response Models
 
-struct ChatResponse: Codable {
+struct ChatResponse: Decodable {
     let response: String
 }
 
-struct InspirationResponse: Codable {
-    let title: String
-    let content: String
-    let verse: String
-    let verse_content: String
-    let theme: String
-    let image_url: String
-    
-    var inspiration: String {
-        return content
-    }
+struct InspirationResponse: Decodable {
+    let inspiration: String
 }
 
-struct MeditationResponse: Codable {
+struct MeditationResponse: Decodable {
     let title: String
     let content: String
     let duration: Int
-    
-    enum CodingKeys: String, CodingKey {
-        case title
-        case content
-        case duration
-    }
-    
-    init(title: String, content: String, duration: Int) {
-        self.title = title
-        self.content = content
-        self.duration = duration
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        // Decode title with fallback
-        if let title = try? container.decode(String.self, forKey: .title) {
-            self.title = title
-        } else {
-            self.title = "Christian Meditation"
-        }
-        
-        // Decode content with fallback
-        if let content = try? container.decode(String.self, forKey: .content) {
-            self.content = content
-        } else {
-            self.content = "Take a deep breath and reflect on God's love. Remember that in all things, God works for the good of those who love him."
-        }
-        
-        // Decode duration with fallback
-        if let duration = try? container.decode(Int.self, forKey: .duration) {
-            self.duration = duration
-        } else {
-            self.duration = 5
-        }
-    }
 }
 
-struct MeditationResponseWithParagraphs: Codable {
-    let title: String
-    let content: String
-    let duration: Int
-    let paragraphs: [String]?
-    
-    enum CodingKeys: String, CodingKey {
-        case title
-        case content
-        case duration
-        case paragraphs
-    }
-    
-    init(title: String, content: String, duration: Int, paragraphs: [String]?) {
-        self.title = title
-        self.content = content
-        self.duration = duration
-        self.paragraphs = paragraphs
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        title = try container.decode(String.self, forKey: .title)
-        
-        // Handle content as either a string or an array of strings
-        if let contentString = try? container.decode(String.self, forKey: .content) {
-            content = contentString
-            paragraphs = nil
-        } else if let contentArray = try? container.decode([String].self, forKey: .content) {
-            content = contentArray.joined(separator: "\n")
-            paragraphs = contentArray
-        } else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .content,
-                in: container,
-                debugDescription: "Expected String or [String] for content"
-            )
-        }
-        
-        // Try to decode duration, but use a default value if it's not present
-        if let decodedDuration = try? container.decode(Int.self, forKey: .duration) {
-            duration = decodedDuration
-        } else {
-            // Default duration (10 minutes)
-            duration = 10
-        }
-    }
-}
-
-// MARK: - Helper Methods
-
-private func createDecoderWithRobustDateHandling() -> JSONDecoder {
-    let decoder = JSONDecoder()
-    
-    // Create a custom date formatter that can handle multiple formats
-    let dateFormatter = DateFormatter()
-    dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-    dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-    
-    // Try multiple date formats
-    decoder.dateDecodingStrategy = .custom { decoder in
-        let container = try decoder.singleValueContainer()
-        let dateString = try container.decode(String.self)
-        
-        // Try ISO8601 first
-        if let date = ISO8601DateFormatter().date(from: dateString) {
-            return date
-        }
-        
-        // Try other formats
-        let formats = [
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ",
-            "yyyy-MM-dd'T'HH:mm:ssZZZZZ",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        ]
-        
-        for format in formats {
-            dateFormatter.dateFormat = format
-            if let date = dateFormatter.date(from: dateString) {
-                return date
-            }
-        }
-        
-        // If all else fails, return current date and log error
-        print("Cannot decode date string: \(dateString), using current date instead")
-        return Date()
-    }
-    
-    return decoder
+struct SubscriptionData: Decodable {
+    let id: String
+    let userId: String
+    let tier: String
+    let status: String
+    let expiresAt: Date?
 } 

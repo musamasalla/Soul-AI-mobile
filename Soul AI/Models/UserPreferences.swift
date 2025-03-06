@@ -65,6 +65,17 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         }
     }
     
+    // Store the current user
+    @Published var currentUser: User? {
+        didSet {
+            if let user = currentUser, let userData = try? JSONEncoder().encode(user) {
+                UserDefaults.standard.set(userData, forKey: "currentUser")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "currentUser")
+            }
+        }
+    }
+    
     init() {
         self.hasSeenWelcome = UserDefaults.standard.bool(forKey: "hasSeenWelcome")
         self.isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
@@ -104,6 +115,19 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         // Initialize notification preferences
         self.dailyInspirationNotifications = UserDefaults.standard.bool(forKey: "dailyInspirationNotifications")
         self.prayerReminderNotifications = UserDefaults.standard.bool(forKey: "prayerReminderNotifications")
+        
+        // Load current user
+        if let userData = UserDefaults.standard.data(forKey: "currentUser"),
+           let user = try? JSONDecoder().decode(User.self, from: userData) {
+            self.currentUser = user
+        } else {
+            self.currentUser = nil
+        }
+        
+        // Fetch subscription status from Supabase
+        Task {
+            await fetchSubscriptionStatus()
+        }
     }
     
     var isSubscriptionActive: Bool {
@@ -138,19 +162,42 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         return characterUsage.remainingMinutes
     }
     
+    // Fetch subscription status from Supabase
+    func fetchSubscriptionStatus() async {
+        let result = await SupabaseService.shared.fetchSubscriptionStatus()
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let status):
+                if status.isActive {
+                    if let tier = SubscriptionTier(rawValue: status.tier) {
+                        self.subscriptionTier = tier
+                    } else {
+                        self.subscriptionTier = .free
+                    }
+                    self.subscriptionExpiryDate = status.expiresAt
+                } else {
+                    self.subscriptionTier = .free
+                    self.subscriptionExpiryDate = nil
+                }
+            case .failure:
+                // In case of error, default to free tier
+                self.subscriptionTier = .free
+                self.subscriptionExpiryDate = nil
+            }
+        }
+    }
+    
     // MARK: - UserPreferencesProtocol
     
     func isUserLoggedIn() -> Bool {
-        return isSubscriptionActive
+        return currentUser != nil
     }
     
     func getCurrentUser() -> User? {
-        // This would typically come from a user object stored in UserDefaults or Keychain
-        // For now, we'll return a mock user if the subscription is active
-        if isSubscriptionActive {
-            return User(id: UUID().uuidString, email: "user@example.com", name: userName)
-        }
-        return nil
+        return currentUser
     }
     
     func getSubscriptionStatus() -> SubscriptionStatus {
@@ -162,6 +209,7 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
     }
     
     func clearUserData() {
+        currentUser = nil
         subscriptionTier = .free
         subscriptionExpiryDate = nil
         characterUsage = CharacterUsage()

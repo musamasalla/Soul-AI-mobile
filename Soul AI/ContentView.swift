@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var preferences = UserPreferences()
+    @StateObject private var authViewModel = AuthViewModel()
     @State private var showSettings = false
     @State private var selectedTab = 0
     
@@ -16,6 +17,10 @@ struct ContentView: View {
         Group {
             if !preferences.hasSeenWelcome {
                 WelcomeView(hasSeenWelcome: $preferences.hasSeenWelcome)
+                    .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+            } else if !authViewModel.isAuthenticated {
+                AuthView()
+                    .environmentObject(authViewModel)
                     .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             } else {
                 TabView(selection: $selectedTab) {
@@ -102,13 +107,20 @@ struct ContentView: View {
                     }
                 }
                 .sheet(isPresented: $showSettings) {
-                    SettingsView(preferences: preferences)
+                    SettingsView(preferences: preferences, authViewModel: authViewModel)
                 }
                 .accentColor(.brandMint)
                 .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             }
         }
         .environmentObject(preferences)
+        .environmentObject(authViewModel)
+        .onAppear {
+            // Update user preferences if authenticated
+            if let user = authViewModel.currentUser {
+                preferences.userName = user.name
+            }
+        }
     }
 }
 
