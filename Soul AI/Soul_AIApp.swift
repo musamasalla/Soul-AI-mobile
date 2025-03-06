@@ -13,6 +13,9 @@ struct Soul_AIApp: App {
     @StateObject private var preferences = UserPreferences()
     @StateObject private var subscriptionService = SubscriptionService.shared
     
+    // Initialize the payment queue handler
+    private let paymentQueueHandler = SKPaymentQueueHandler.shared
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -21,8 +24,18 @@ struct Soul_AIApp: App {
                 .onAppear {
                     #if DEBUG
                     if let url = Bundle.main.url(forResource: "Subscriptions", withExtension: "storekit") {
-                        try? SKPaymentQueue.default().add(SKPaymentQueueHandler(storefront: .default))
-                        try? SKAdministrativeCenter.default().loadStorefrontForTesting(from: url)
+                        // Use our SKPaymentQueueHandler singleton that's already initialized
+                        // and already added to the payment queue
+                        
+                        // For StoreKit 2 testing configuration (iOS 15+)
+                        if #available(iOS 15.0, *) {
+                            // StoreKit 2 uses a different approach for testing
+                            // The .storekit file is automatically loaded in debug mode
+                            // No need to manually load it
+                        } else {
+                            // For older iOS versions, we rely on our SKPaymentQueueHandler
+                            // which is already set up
+                        }
                     }
                     #endif
                 }

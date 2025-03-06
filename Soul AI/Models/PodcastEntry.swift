@@ -59,12 +59,19 @@ struct PodcastEntry: Identifiable, Codable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
     }
-}
-
-enum PodcastStatus: String, Codable {
-    case generating
-    case ready
-    case failed
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(description, forKey: .description)
+        try container.encode(chapter, forKey: .chapter)
+        try container.encode(audioUrl, forKey: .audioUrl)
+        try container.encode(status.rawValue, forKey: .status)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
+    }
 }
 
 struct BibleStructure {

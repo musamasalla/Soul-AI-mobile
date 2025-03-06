@@ -84,10 +84,52 @@ class ChatViewModel: ObservableObject {
                 if case .failure(let error) = completionStatus {
                     print("Error getting daily inspiration: \(error.localizedDescription)")
                     // Use fallback in case of error
-                    completion(self.christianResponses.randomElement() ?? "May God bless you today and always.")
+                    let fallbackVerse = self.christianResponses.randomElement() ?? "May God bless you today and always."
+                    let fallbackReflection = "God has a purpose and plan for your life. Even in difficult times, He is working all things together for your good. Trust in His timing and His wisdom."
+                    let fallbackPrayer = "Dear Lord, help me to trust in Your perfect plan for my life. Give me the patience to wait on Your timing and the faith to believe in Your promises. Amen."
+                    
+                    let formattedInspiration = """
+                    \(fallbackVerse)
+                    
+                    \(fallbackReflection)
+                    
+                    \(fallbackPrayer)
+                    """
+                    
+                    completion(formattedInspiration)
                 }
             }, receiveValue: { inspiration in
-                completion(inspiration)
+                // Format the inspiration if needed
+                // This assumes the API might return a simple string
+                // In a real app, you might want to structure this better
+                
+                // Check if the inspiration already has the expected format
+                if inspiration.contains("\n\n") {
+                    completion(inspiration)
+                } else {
+                    // If not, try to format it
+                    let components = inspiration.components(separatedBy: " - ")
+                    if components.count >= 2 {
+                        let verse = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                        let reference = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                        
+                        let reflection = "God has a purpose and plan for your life. Even in difficult times, He is working all things together for your good. Trust in His timing and His wisdom."
+                        let prayer = "Dear Lord, help me to trust in Your perfect plan for my life. Give me the patience to wait on Your timing and the faith to believe in Your promises. Amen."
+                        
+                        let formattedInspiration = """
+                        \(verse) - \(reference)
+                        
+                        \(reflection)
+                        
+                        \(prayer)
+                        """
+                        
+                        completion(formattedInspiration)
+                    } else {
+                        // If we can't parse it, just return it as is
+                        completion(inspiration)
+                    }
+                }
             })
             .store(in: &cancellables)
     }

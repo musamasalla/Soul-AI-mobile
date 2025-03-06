@@ -11,6 +11,7 @@ struct SupabaseConfig {
     static let meditationEndpoint = "\(supabaseUrl)/functions/v1/generate-meditation"
     static let advancedMeditationEndpoint = "\(supabaseUrl)/functions/v1/generate-advanced-meditation"
     static let podcastEndpoint = "\(supabaseUrl)/functions/v1/generate-podcast"
+    static let premiumPodcastEndpoint = "\(supabaseUrl)/functions/v1/generate-premium-podcast"
     static let summaryEndpoint = "\(supabaseUrl)/functions/v1/generate-summary"
     
     // Headers for API requests

@@ -9,7 +9,7 @@ struct WelcomeView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.brandBackground
+            Color.AppTheme.background
                 .ignoresSafeArea()
             
             VStack(spacing: 30) {

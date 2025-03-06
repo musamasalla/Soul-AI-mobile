@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-class SupabaseService {
+class SupabaseService: SupabaseServiceProtocol {
     static let shared = SupabaseService()
     
     private let session: URLSession
@@ -407,6 +407,186 @@ class SupabaseService {
                 }
             }
             .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Premium Podcast API
+    
+    func fetchPremiumPodcasts() async -> Result<[PremiumPodcast], Error> {
+        guard let url = URL(string: "\(SupabaseConfig.supabaseUrl)/rest/v1/premium_podcasts?select=*&order=created_at.desc") else {
+            return .failure(URLError(.badURL))
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Add additional headers for Supabase REST API
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let decoder = createDecoderWithRobustDateHandling()
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return .failure(URLError(.badServerResponse))
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                // Try to extract error message from response
+                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let errorMessage = errorData["error"] as? String {
+                    return .failure(NSError(domain: "SupabaseErrorDomain", 
+                                         code: httpResponse.statusCode,
+                                         userInfo: [NSLocalizedDescriptionKey: errorMessage]))
+                } else {
+                    return .failure(NSError(domain: "SupabaseErrorDomain", 
+                                         code: httpResponse.statusCode,
+                                         userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"]))
+                }
+            }
+            
+            // Log response for debugging
+            #if DEBUG
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("API Response: \(responseString)")
+            }
+            #endif
+            
+            do {
+                let podcasts = try decoder.decode([PremiumPodcast].self, from: data)
+                return .success(podcasts)
+            } catch {
+                print("Error decoding premium podcasts: \(error)")
+                // Return empty array instead of failing
+                return .success([])
+            }
+        } catch {
+            return .failure(error)
+        }
+    }
+    
+    func generatePremiumPodcast(topic: String, duration: Int, voices: [String]) async -> Result<PremiumPodcast, Error> {
+        guard let url = URL(string: SupabaseConfig.premiumPodcastEndpoint) else {
+            return .failure(URLError(.badURL))
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        // Keep a reasonable timeout since we're now expecting a quick response
+        request.timeoutInterval = 30
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Create request body
+        let body: [String: Any] = [
+            "topic": topic,
+            "duration": duration,
+            "voices": voices,
+            "initialRequest": true
+        ]
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: body)
+            request.httpBody = jsonData
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return .failure(URLError(.badServerResponse))
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                // Try to extract error message from response
+                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let errorMessage = errorData["error"] as? String {
+                    return .failure(NSError(domain: "SupabaseErrorDomain", 
+                                 code: httpResponse.statusCode,
+                                 userInfo: [NSLocalizedDescriptionKey: errorMessage]))
+                } else {
+                    return .failure(NSError(domain: "SupabaseErrorDomain", 
+                                 code: httpResponse.statusCode,
+                                 userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"]))
+                }
+            }
+            
+            // Log response for debugging
+            #if DEBUG
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("API Response: \(responseString)")
+            }
+            #endif
+            
+            let decoder = createDecoderWithRobustDateHandling()
+            
+            do {
+                let podcast = try decoder.decode(PremiumPodcast.self, from: data)
+                return .success(podcast)
+            } catch {
+                print("Error decoding premium podcast: \(error)")
+                return .failure(error)
+            }
+        } catch {
+            return .failure(error)
+        }
+    }
+    
+    // MARK: - Authentication Methods
+    
+    func signUp(email: String, password: String) async -> Result<User, Error> {
+        // This would typically call Supabase auth.signUp
+        // For now, return a mock user
+        let mockUser = User(id: UUID().uuidString, email: email, name: "New User")
+        return .success(mockUser)
+    }
+    
+    func signIn(email: String, password: String) async -> Result<User, Error> {
+        // This would typically call Supabase auth.signIn
+        // For now, return a mock user
+        let mockUser = User(id: UUID().uuidString, email: email, name: "Existing User")
+        return .success(mockUser)
+    }
+    
+    func signOut() async -> Result<Void, Error> {
+        // This would typically call Supabase auth.signOut
+        return .success(())
+    }
+    
+    func resetPassword(email: String) async -> Result<Void, Error> {
+        // This would typically call Supabase auth.resetPasswordForEmail
+        return .success(())
+    }
+    
+    func getCurrentUser() async -> Result<User?, Error> {
+        // This would typically check Supabase auth.session()
+        // For now, return nil to indicate no user is logged in
+        return .success(nil)
+    }
+    
+    func updateUser(user: User) async -> Result<User, Error> {
+        // This would typically call Supabase auth.update
+        return .success(user)
+    }
+    
+    // MARK: - Subscription Methods
+    
+    func fetchSubscriptionStatus() async -> Result<SubscriptionStatus, Error> {
+        // This would typically fetch the subscription status from Supabase
+        // For now, return a mock subscription status
+        let mockStatus = SubscriptionStatus(
+            isActive: true,
+            tier: "premium",
+            expiresAt: Calendar.current.date(byAdding: .month, value: 1, to: Date())
+        )
+        return .success(mockStatus)
     }
 }
 
