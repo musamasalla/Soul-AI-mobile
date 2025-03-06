@@ -14,6 +14,7 @@ struct MeditationView: View {
     @State private var timer: Timer?
     @State private var showCopyConfirmation: Bool = false
     @State private var selectedTab = 0
+    @Environment(\.colorScheme) private var colorScheme
     
     private var basicTopics = ["Peace", "Faith", "Hope", "Love"]
     private var premiumTopics = ["Forgiveness", "Gratitude", "Wisdom", "Patience", "Kindness", "Self-Control", "Gentleness", "Joy"]
@@ -21,7 +22,7 @@ struct MeditationView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.brandBackground
+            Color.AppTheme.background
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -77,13 +78,14 @@ struct MeditationView: View {
                         TextEditor(text: $viewModel.moodText)
                             .frame(height: 100)
                             .padding(12)
-                            .background(Color(.systemGray6).opacity(0.3))
+                            .background(Color.AppTheme.inputBackground)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
                             )
                             .font(.body)
+                            .foregroundColor(Color.AppTheme.primaryText)
                     }
                     
                     // Topic selection
@@ -104,12 +106,12 @@ struct MeditationView: View {
                                             .background(
                                                 viewModel.selectedTopic == topic ?
                                                 Color.brandMint :
-                                                Color(.systemGray6).opacity(0.3)
+                                                Color.AppTheme.inputBackground
                                             )
                                             .foregroundColor(
                                                 viewModel.selectedTopic == topic ?
                                                 .black :
-                                                .white
+                                                Color.AppTheme.primaryText
                                             )
                                             .cornerRadius(20)
                                     }
@@ -164,10 +166,10 @@ struct MeditationView: View {
                         
                         Text(meditation.content)
                             .font(.body)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                             .lineSpacing(6)
                             .padding()
-                            .background(Color(.systemGray6).opacity(0.3))
+                            .background(Color.AppTheme.cardBackground)
                             .cornerRadius(12)
                         
                         // Share button
@@ -184,7 +186,7 @@ struct MeditationView: View {
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color(.systemGray6).opacity(0.3))
+                                .background(Color.AppTheme.cardBackground)
                                 .foregroundColor(.brandMint)
                                 .cornerRadius(12)
                         }
@@ -218,49 +220,34 @@ struct MeditationView: View {
                         TextEditor(text: $viewModel.moodText)
                             .frame(height: 100)
                             .padding(12)
-                            .background(Color(.systemGray6).opacity(0.3))
+                            .background(Color.AppTheme.inputBackground)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
                             )
                             .font(.body)
+                            .foregroundColor(Color.AppTheme.primaryText)
                     }
                     
                     // Scripture input (premium feature)
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Specific scripture (optional):")
+                        Text("Scripture Reference (optional):")
                             .font(.headline)
                             .foregroundColor(.brandMint)
                         
                         TextField("e.g., Psalm 23, John 3:16", text: $viewModel.scriptureReference)
-                            .padding()
-                            .background(Color(.systemGray6).opacity(0.3))
+                            .padding(12)
+                            .background(Color.AppTheme.inputBackground)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
                             )
+                            .foregroundColor(Color.AppTheme.primaryText)
                     }
                     
-                    // Duration selection (premium feature)
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Meditation duration:")
-                            .font(.headline)
-                            .foregroundColor(.brandMint)
-                        
-                        Picker("Duration", selection: $viewModel.meditationDuration) {
-                            Text("5 minutes").tag(5)
-                            Text("10 minutes").tag(10)
-                            Text("15 minutes").tag(15)
-                            Text("20 minutes").tag(20)
-                            Text("30 minutes").tag(30)
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .colorMultiply(.brandMint)
-                    }
-                    
-                    // Topic selection with premium topics
+                    // Topic selection
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Select a topic:")
                             .font(.headline)
@@ -268,7 +255,7 @@ struct MeditationView: View {
                         
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
-                                ForEach(basicTopics + premiumTopics, id: \.self) { topic in
+                                ForEach(premiumTopics, id: \.self) { topic in
                                     Button(action: {
                                         viewModel.selectedTopic = topic
                                     }) {
@@ -278,12 +265,12 @@ struct MeditationView: View {
                                             .background(
                                                 viewModel.selectedTopic == topic ?
                                                 Color.brandMint :
-                                                Color(.systemGray6).opacity(0.3)
+                                                Color.AppTheme.inputBackground
                                             )
                                             .foregroundColor(
                                                 viewModel.selectedTopic == topic ?
                                                 .black :
-                                                .white
+                                                Color.AppTheme.primaryText
                                             )
                                             .cornerRadius(20)
                                     }
@@ -291,6 +278,22 @@ struct MeditationView: View {
                             }
                             .padding(.vertical, 4)
                         }
+                    }
+                    
+                    // Duration selection
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Meditation Duration:")
+                            .font(.headline)
+                            .foregroundColor(.brandMint)
+                        
+                        Picker("Duration", selection: $viewModel.meditationDuration) {
+                            Text("5 minutes").tag(5)
+                            Text("10 minutes").tag(10)
+                            Text("15 minutes").tag(15)
+                            Text("20 minutes").tag(20)
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .colorMultiply(.brandMint)
                     }
                     
                     // Generate button
@@ -330,10 +333,10 @@ struct MeditationView: View {
                         
                         Text(meditation.content)
                             .font(.body)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                             .lineSpacing(6)
                             .padding()
-                            .background(Color(.systemGray6).opacity(0.3))
+                            .background(Color.AppTheme.cardBackground)
                             .cornerRadius(12)
                         
                         // Share button
@@ -350,7 +353,7 @@ struct MeditationView: View {
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color(.systemGray6).opacity(0.3))
+                                .background(Color.AppTheme.cardBackground)
                                 .foregroundColor(.brandMint)
                                 .cornerRadius(12)
                         }
@@ -368,17 +371,18 @@ struct MeditationView: View {
 struct ParagraphCard: View {
     let text: String
     let index: Int
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text)
                 .font(.body)
-                .foregroundColor(.white)
+                .foregroundColor(Color.AppTheme.primaryText)
                 .lineSpacing(8)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
-        .background(Color.brandMint.opacity(0.05))
+        .background(Color.AppTheme.cardBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)

@@ -16,14 +16,14 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarColorScheme(preferences.isDarkMode ? .dark : .light, for: .navigationBar)
         .toolbarBackground(Color.AppTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .navigationBarItems(trailing: Button("Done") {
             presentationMode.wrappedValue.dismiss()
         }
         .foregroundColor(Color.AppTheme.brandMint))
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
         .onAppear {
             username = preferences.userName
         }
@@ -50,6 +50,11 @@ struct SettingsView: View {
             
             // About section
             aboutSection
+            
+            // Debug section (only in DEBUG builds)
+            #if DEBUG
+            debugSection
+            #endif
             
             // Reset section
             resetSection
@@ -158,6 +163,43 @@ struct SettingsView: View {
                 }
         }
     }
+    
+    // Debug section for testing subscription tiers
+    #if DEBUG
+    private var debugSection: some View {
+        Section(header: Text("Debug Options").foregroundColor(Color.AppTheme.brandMint)) {
+            Button(action: {
+                preferences.subscriptionTier = .free
+                preferences.subscriptionExpiryDate = nil
+            }) {
+                Text("Set to Free Plan")
+                    .foregroundColor(.AppTheme.primaryText)
+            }
+            
+            Button(action: {
+                preferences.subscriptionTier = .premium
+                let calendar = Calendar.current
+                if let expiryDate = calendar.date(byAdding: .month, value: 1, to: Date()) {
+                    preferences.subscriptionExpiryDate = expiryDate
+                }
+            }) {
+                Text("Set to Premium Plan")
+                    .foregroundColor(.AppTheme.primaryText)
+            }
+            
+            Button(action: {
+                preferences.subscriptionTier = .guided
+                let calendar = Calendar.current
+                if let expiryDate = calendar.date(byAdding: .month, value: 1, to: Date()) {
+                    preferences.subscriptionExpiryDate = expiryDate
+                }
+            }) {
+                Text("Set to Guided Plan")
+                    .foregroundColor(.AppTheme.primaryText)
+            }
+        }
+    }
+    #endif
     
     // Reset section
     private var resetSection: some View {

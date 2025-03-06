@@ -3,13 +3,18 @@ import SwiftUI
 struct SoulAILogo: View {
     var size: CGFloat
     var color: Color = Color.AppTheme.brandMint
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         ZStack {
-            // Black background
+            // Dynamic background based on color scheme
             Rectangle()
-                .fill(Color.black)
+                .fill(colorScheme == .dark ? Color.black : Color.white)
                 .frame(width: size, height: size)
+                .overlay(
+                    Rectangle()
+                        .stroke(color.opacity(0.3), lineWidth: colorScheme == .light ? 1 : 0)
+                )
             
             // Turquoise cross
             Group {

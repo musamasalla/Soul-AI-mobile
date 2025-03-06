@@ -21,8 +21,13 @@ struct Soul_AIApp: App {
             ContentView()
                 .environmentObject(preferences)
                 .environmentObject(subscriptionService)
+                .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
                 .onAppear {
                     #if DEBUG
+                    // Debug option to reset subscription tier to free
+                    // Uncomment the line below to reset to free plan for testing
+                    // resetToFreePlan()
+                    
                     if let url = Bundle.main.url(forResource: "Subscriptions", withExtension: "storekit") {
                         // Use our SKPaymentQueueHandler singleton that's already initialized
                         // and already added to the payment queue
@@ -41,4 +46,13 @@ struct Soul_AIApp: App {
                 }
         }
     }
+    
+    #if DEBUG
+    // Debug function to reset subscription to free plan
+    private func resetToFreePlan() {
+        UserDefaults.standard.set("free", forKey: "subscriptionTier")
+        UserDefaults.standard.removeObject(forKey: "subscriptionExpiryDate")
+        print("DEBUG: Reset to free plan for testing")
+    }
+    #endif
 }

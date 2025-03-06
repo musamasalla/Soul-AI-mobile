@@ -10,6 +10,7 @@ struct BibleStudyView: View {
     @State private var previousStudies: [BibleStudyEntry] = []
     @State private var showTopicPicker: Bool = false
     @State private var showScripturePicker: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
     
     // Audio player
     @State private var audioPlayer: AVAudioPlayer?
@@ -25,31 +26,31 @@ struct BibleStudyView: View {
         NavigationView {
             ZStack {
                 // Background
-                Color.black.edgesIgnoringSafeArea(.all)
+                Color.AppTheme.background.edgesIgnoringSafeArea(.all)
                 
                 VStack(alignment: .leading, spacing: 20) {
                     // Bible Study Topic
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Bible Study Topic")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                         
                         Button(action: {
                             showTopicPicker.toggle()
                         }) {
                             HStack {
                                 Text(selectedTopic)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                                     .padding()
                                 Spacer()
                                 Image(systemName: "chevron.down")
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                                     .padding(.trailing)
                             }
-                            .background(Color.black.opacity(0.3))
+                            .background(Color.AppTheme.inputBackground)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                                    .stroke(Color.AppTheme.brandMint.opacity(0.5), lineWidth: 1)
                             )
                             .cornerRadius(10)
                         }
@@ -84,7 +85,7 @@ struct BibleStudyView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Duration")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                         
                         Menu {
                             ForEach(durations, id: \.self) { duration in
@@ -97,15 +98,15 @@ struct BibleStudyView: View {
                         } label: {
                             HStack {
                                 Text(selectedDuration)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                                     .padding()
                                 Spacer()
                             }
                             .frame(maxWidth: .infinity)
-                            .background(Color.black.opacity(0.3))
+                            .background(Color.AppTheme.inputBackground)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                                    .stroke(Color.AppTheme.brandMint.opacity(0.5), lineWidth: 1)
                             )
                             .cornerRadius(10)
                         }
@@ -116,11 +117,11 @@ struct BibleStudyView: View {
                         HStack {
                             Text("Scripture Reference")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundColor(Color.AppTheme.primaryText)
                             
                             Text("(Premium)")
                                 .font(.subheadline)
-                                .foregroundColor(.gray)
+                                .foregroundColor(Color.AppTheme.secondaryText)
                         }
                         
                         Button(action: {
@@ -128,17 +129,17 @@ struct BibleStudyView: View {
                         }) {
                             HStack {
                                 Text(selectedScripture)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                                     .padding()
                                 Spacer()
                                 Image(systemName: "chevron.down")
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.AppTheme.primaryText)
                                     .padding(.trailing)
                             }
-                            .background(Color.black.opacity(0.3))
+                            .background(Color.AppTheme.inputBackground)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                                    .stroke(Color.AppTheme.brandMint.opacity(0.5), lineWidth: 1)
                             )
                             .cornerRadius(10)
                         }
@@ -197,7 +198,7 @@ struct BibleStudyView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Previous Bible Studies")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                         
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 16) {
@@ -232,101 +233,113 @@ struct BibleStudyView: View {
     private func generateBibleStudy() {
         isGenerating = true
         
-        // Simulate API call with a delay
+        // Simulate API call with delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            // Create a new Bible study entry
             let newStudy = BibleStudyEntry(
                 id: UUID().uuidString,
                 title: "Exploring the Depths of \(selectedTopic)",
-                scripture: selectedScripture != "Select scripture" ? selectedScripture : "John 3:16",
-                audioURL: "bible_study_sample",
-                date: Date()
+                scripture: scriptures.randomElement() ?? "John 3:16",
+                audioUrl: nil,
+                duration: selectedDuration,
+                createdAt: Date()
             )
             
+            // Add to previous studies
             previousStudies.insert(newStudy, at: 0)
+            
+            // Save to UserDefaults
+            savePreviousStudies()
+            
             isGenerating = false
-        }
-    }
-    
-    // Function to load previous studies
-    private func loadPreviousStudies() {
-        // For demo purposes, we'll create some sample studies
-        if previousStudies.isEmpty {
-            previousStudies = [
-                BibleStudyEntry(
-                    id: "1",
-                    title: "Exploring the Depths of Faith",
-                    scripture: "John 15",
-                    audioURL: "bible_study_sample",
-                    date: Date().addingTimeInterval(-86400)
-                ),
-                BibleStudyEntry(
-                    id: "2",
-                    title: "Exploring the Depths of Hope",
-                    scripture: "John 14",
-                    audioURL: "bible_study_sample",
-                    date: Date().addingTimeInterval(-172800)
-                )
-            ]
         }
     }
     
     // Function to toggle audio playback
     private func togglePlayback(for index: Int) {
-        // If we're already playing this track, pause it
+        // If already playing this study, pause it
         if currentlyPlayingIndex == index && isPlaying {
             audioPlayer?.pause()
             isPlaying = false
             return
         }
         
-        // If we're playing a different track, stop it
-        if isPlaying && currentlyPlayingIndex != nil {
-            audioPlayer?.stop()
-            isPlaying = false
-        }
+        // If playing a different study, stop it
+        audioPlayer?.stop()
         
-        // Set the current track and play it
+        // Set the current study
         currentlyPlayingIndex = index
         
-        // In a real app, you would load the audio file from the URL
-        // For this demo, we'll use a bundled audio file
-        if let path = Bundle.main.path(forResource: "bible_study_sample", ofType: "mp3") {
-            let url = URL(fileURLWithPath: path)
-            do {
-                audioPlayer = try AVAudioPlayer(contentsOf: url)
-                audioPlayer?.prepareToPlay()
-                audioPlayer?.play()
-                isPlaying = true
-            } catch {
-                print("Error playing audio: \(error.localizedDescription)")
+        // Simulate playing audio
+        isPlaying = true
+        
+        // In a real app, you would load and play the audio file here
+        // For now, we'll just simulate it with a timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            if self.isPlaying && self.currentlyPlayingIndex == index {
+                self.isPlaying = false
             }
+        }
+    }
+    
+    // Load previous studies from UserDefaults
+    private func loadPreviousStudies() {
+        if let data = UserDefaults.standard.data(forKey: "previousBibleStudies"),
+           let decoded = try? JSONDecoder().decode([BibleStudyEntry].self, from: data) {
+            previousStudies = decoded
         } else {
-            // If the file doesn't exist, we'll just toggle the state for the UI
-            isPlaying = true
+            // Add some sample studies if none exist
+            previousStudies = [
+                BibleStudyEntry(
+                    id: "1",
+                    title: "Exploring the Depths of Faith",
+                    scripture: "John 15",
+                    audioUrl: nil,
+                    duration: "5-10 minutes",
+                    createdAt: Date().addingTimeInterval(-86400)
+                ),
+                BibleStudyEntry(
+                    id: "2",
+                    title: "Exploring the Depths of Hope",
+                    scripture: "John 14",
+                    audioUrl: nil,
+                    duration: "5-10 minutes",
+                    createdAt: Date().addingTimeInterval(-172800)
+                )
+            ]
+            savePreviousStudies()
+        }
+    }
+    
+    // Save previous studies to UserDefaults
+    private func savePreviousStudies() {
+        if let encoded = try? JSONEncoder().encode(previousStudies) {
+            UserDefaults.standard.set(encoded, forKey: "previousBibleStudies")
         }
     }
 }
 
 // Bible Study Entry Model
-struct BibleStudyEntry: Identifiable {
+struct BibleStudyEntry: Identifiable, Codable {
     let id: String
     let title: String
     let scripture: String
-    let audioURL: String
-    let date: Date
+    let audioUrl: String?
+    let duration: String
+    let createdAt: Date
 }
 
-// Bible Study Card View
 struct BibleStudyCard: View {
     let study: BibleStudyEntry
     let isPlaying: Bool
     let onPlay: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(study.title)
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(Color.AppTheme.primaryText)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
             
@@ -334,7 +347,7 @@ struct BibleStudyCard: View {
             
             Text(study.scripture)
                 .font(.subheadline)
-                .foregroundColor(.gray)
+                .foregroundColor(Color.AppTheme.secondaryText)
             
             HStack {
                 Button(action: onPlay) {
@@ -355,10 +368,10 @@ struct BibleStudyCard: View {
             }
         }
         .padding()
-        .background(Color.black.opacity(0.3))
+        .background(Color.AppTheme.cardBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                .stroke(Color.AppTheme.brandMint.opacity(0.2), lineWidth: 1)
         )
         .cornerRadius(10)
     }

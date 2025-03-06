@@ -16,7 +16,7 @@ struct MessageBubbleView: View {
                             .foregroundColor(Color.brandMint.opacity(0.7))
                         
                         Text(message.content)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                     }
                     
                     Spacer()
@@ -33,7 +33,7 @@ struct MessageBubbleView: View {
                             .foregroundColor(Color.brandMint.opacity(0.7))
                         
                         Text(message.content)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.AppTheme.primaryText)
                             .multilineTextAlignment(.trailing)
                     }
                     
@@ -44,8 +44,8 @@ struct MessageBubbleView: View {
             }
         }
         .background(message.role == .assistant ? 
-                    Color.black : 
-                    Color(.systemGray6).opacity(0.1))
+                    (colorScheme == .dark ? Color.AppTheme.darkModeCardBackground : Color.AppTheme.lightModeCardBackground) : 
+                    (colorScheme == .dark ? Color(.systemGray6).opacity(0.1) : Color(.systemGray6).opacity(0.2)))
     }
     
     private var assistantIcon: some View {
@@ -53,7 +53,7 @@ struct MessageBubbleView: View {
             .foregroundColor(Color.brandMint)
             .font(.system(size: 16))
             .frame(width: 24, height: 24)
-            .background(Circle().fill(Color.black))
+            .background(Circle().fill(colorScheme == .dark ? Color.black : Color.white))
             .overlay(
                 Circle()
                     .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
@@ -74,6 +74,6 @@ struct MessageBubbleView: View {
             MessageBubbleView(message: Message(content: "Hello, how can I help you today with your faith journey? I'm here to provide guidance and support based on Christian teachings.", role: .assistant))
             MessageBubbleView(message: Message(content: "I have a question about faith and doubt. How do I handle moments of uncertainty?", role: .user))
         }
-        .background(Color.black)
+        .background(Color.AppTheme.background)
     }
 } 

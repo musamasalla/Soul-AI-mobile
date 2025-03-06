@@ -4,6 +4,7 @@ struct TypingIndicatorView: View {
     @State private var showCircle1 = false
     @State private var showCircle2 = false
     @State private var showCircle3 = false
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -12,7 +13,7 @@ struct TypingIndicatorView: View {
                     .foregroundColor(Color.brandMint)
                     .font(.system(size: 16))
                     .frame(width: 24, height: 24)
-                    .background(Circle().fill(Color.black))
+                    .background(Circle().fill(colorScheme == .dark ? Color.black : Color.white))
                     .overlay(
                         Circle()
                             .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)
@@ -49,7 +50,7 @@ struct TypingIndicatorView: View {
             .padding(.horizontal)
             .padding(.vertical, 10)
         }
-        .background(Color.black)
+        .background(colorScheme == .dark ? Color.AppTheme.darkModeCardBackground : Color.AppTheme.lightModeCardBackground)
         .onAppear {
             animateDots()
         }
@@ -78,5 +79,5 @@ struct TypingIndicatorView: View {
 
 #Preview {
     TypingIndicatorView()
-        .background(Color.black)
+        .background(Color.AppTheme.background)
 } 

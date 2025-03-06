@@ -16,6 +16,7 @@ struct ContentView: View {
         Group {
             if !preferences.hasSeenWelcome {
                 WelcomeView(hasSeenWelcome: $preferences.hasSeenWelcome)
+                    .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             } else {
                 TabView(selection: $selectedTab) {
                     // Chat Tab

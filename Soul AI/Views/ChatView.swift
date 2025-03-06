@@ -10,7 +10,7 @@ struct ChatView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.black
+            Color.AppTheme.background
                 .ignoresSafeArea()
             
             // Main chat view
@@ -46,7 +46,7 @@ struct ChatView: View {
                         }
                     }
                 }
-                .background(Color.black)
+                .background(Color.AppTheme.background)
                 
                 // Input area
                 inputArea
@@ -54,7 +54,7 @@ struct ChatView: View {
             
             // Sidebar overlay
             if showSidebar {
-                Color.black.opacity(0.5)
+                Color(colorScheme == .dark ? .black : .gray).opacity(0.5)
                     .ignoresSafeArea()
                     .onTapGesture {
                         withAnimation {
@@ -72,7 +72,6 @@ struct ChatView: View {
                 .transition(.opacity)
             }
         }
-        .preferredColorScheme(.dark)
         .onAppear {
             viewModel.addWelcomeMessage()
         }
@@ -111,7 +110,7 @@ struct ChatView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color.black)
+        .background(Color.AppTheme.background)
         .shadow(color: Color.brandMint.opacity(0.2), radius: 5, x: 0, y: 2)
     }
     
@@ -124,8 +123,8 @@ struct ChatView: View {
                 // Text input field
                 TextField("Message Soul AI...", text: $viewModel.inputMessage, axis: .vertical)
                     .padding(12)
-                    .background(Color(.systemGray6).opacity(0.3))
-                    .foregroundColor(.white)
+                    .background(Color.AppTheme.inputBackground)
+                    .foregroundColor(Color.AppTheme.primaryText)
                     .cornerRadius(20)
                     .focused($isInputFocused)
                     .lineLimit(5)
@@ -148,70 +147,33 @@ struct ChatView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.black)
+            .background(Color.AppTheme.background)
         }
     }
     
     private var sidebarView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Search bar
+            // App logo and name
             HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
-                
-                Text("Search")
-                    .foregroundColor(.gray)
-                
-                Spacer()
-            }
-            .padding()
-            .background(Color(.systemGray6).opacity(0.3))
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.brandMint.opacity(0.3), lineWidth: 1)
-            )
-            .padding()
-            
-            // Main option
-            HStack {
-                Image(systemName: "cross.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(Color.brandMint)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.black))
+                SoulAILogo(size: 40)
                 
                 Text("Soul AI")
-                    .font(.headline)
+                    .font(.title2)
+                    .bold()
                     .foregroundColor(Color.brandMint)
                 
                 Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            .background(Color(.systemGray6).opacity(0.1))
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.brandMint.opacity(0.3), lineWidth: 1)
-            )
-            .padding(.horizontal)
-            
-            // Explore option
-            HStack {
-                Image(systemName: "square.grid.2x2")
-                    .font(.system(size: 20))
-                    .foregroundColor(Color.brandMint)
                 
-                Text("Explore Bible Verses")
-                    .font(.headline)
-                    .foregroundColor(Color.brandMint)
-                
-                Spacer()
+                Button(action: {
+                    withAnimation {
+                        showSidebar = false
+                    }
+                }) {
+                    Image(systemName: "xmark")
+                        .foregroundColor(Color.AppTheme.primaryText)
+                }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            .padding(.top, 8)
+            .padding()
             
             Divider()
                 .background(Color.brandMint.opacity(0.3))
@@ -246,7 +208,7 @@ struct ChatView: View {
                     )
                 
                 Text(preferences.userName)
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.AppTheme.primaryText)
                 
                 Spacer()
                 
@@ -260,7 +222,7 @@ struct ChatView: View {
             }
             .padding()
         }
-        .background(Color.black)
+        .background(Color.AppTheme.background)
         .edgesIgnoringSafeArea(.vertical)
     }
     
@@ -268,12 +230,12 @@ struct ChatView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(days)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(Color.AppTheme.secondaryText)
                 .padding(.horizontal)
             
             HStack {
                 Text(title)
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.AppTheme.primaryText)
                     .lineLimit(1)
                 
                 Spacer()
