@@ -80,13 +80,28 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
     }
     
     init() {
-        // Initialize all stored properties first
+        // Initialize all stored properties with default values first
+        // This ensures all properties are initialized before any didSet is triggered
+        self.hasSeenWelcome = false
+        self.isDarkMode = false // Temporary value, will be set correctly below
+        self.fontSize = .medium
+        self.userName = "User"
+        self.subscriptionTier = .free
+        self.subscriptionExpiryDate = nil
+        self.characterUsage = CharacterUsage()
+        self.dailyInspirationNotifications = false
+        self.prayerReminderNotifications = false
+        self.currentUser = nil
+        
+        // Now load values from UserDefaults
+        // Since all properties are already initialized, didSet won't cause issues
+        
+        // Load hasSeenWelcome
         self.hasSeenWelcome = UserDefaults.standard.bool(forKey: "hasSeenWelcome")
         
-        // Initialize isDarkMode without using self
-        let storedDarkMode = UserDefaults.standard.object(forKey: "isDarkMode") as? Bool
-        if let storedValue = storedDarkMode {
-            self.isDarkMode = storedValue
+        // Load isDarkMode
+        if UserDefaults.standard.object(forKey: "isDarkMode") != nil {
+            self.isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
         } else {
             // Use system appearance as default
             let systemAppearance = UITraitCollection.current.userInterfaceStyle
@@ -95,39 +110,35 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
             UserDefaults.standard.set(self.isDarkMode, forKey: "isDarkMode")
         }
         
+        // Load fontSize
         if let fontSizeRawValue = UserDefaults.standard.string(forKey: "fontSize"),
            let fontSize = FontSize(rawValue: fontSizeRawValue) {
             self.fontSize = fontSize
-        } else {
-            self.fontSize = .medium
         }
         
+        // Load userName
         if let savedUserName = UserDefaults.standard.string(forKey: "userName"), !savedUserName.isEmpty {
             self.userName = savedUserName
-        } else {
-            self.userName = "User"
         }
         
+        // Load subscriptionTier
         if let subscriptionTierRawValue = UserDefaults.standard.string(forKey: "subscriptionTier"),
            let tier = SubscriptionTier(rawValue: subscriptionTierRawValue) {
             self.subscriptionTier = tier
-        } else {
-            self.subscriptionTier = .free
         }
         
+        // Load subscriptionExpiryDate
         self.subscriptionExpiryDate = UserDefaults.standard.object(forKey: "subscriptionExpiryDate") as? Date
         
-        // Load character usage or create default
+        // Load character usage
         if let savedUsageData = UserDefaults.standard.data(forKey: "characterUsage"),
            let savedUsage = try? JSONDecoder().decode(CharacterUsage.self, from: savedUsageData) {
             var usage = savedUsage
             usage.checkAndResetIfNeeded() // Check if we need to reset based on date
             self.characterUsage = usage
-        } else {
-            self.characterUsage = CharacterUsage()
         }
         
-        // Initialize notification preferences
+        // Load notification preferences
         self.dailyInspirationNotifications = UserDefaults.standard.bool(forKey: "dailyInspirationNotifications")
         self.prayerReminderNotifications = UserDefaults.standard.bool(forKey: "prayerReminderNotifications")
         
@@ -135,8 +146,6 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         if let userData = UserDefaults.standard.data(forKey: "currentUser"),
            let user = try? JSONDecoder().decode(User.self, from: userData) {
             self.currentUser = user
-        } else {
-            self.currentUser = nil
         }
         
         // Fetch subscription status from Supabase
