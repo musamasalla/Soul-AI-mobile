@@ -57,6 +57,9 @@ class SubscriptionService: NSObject, ObservableObject {
     private var productIDs = Set(SubscriptionProduct.allCases.map { $0.rawValue })
     private var updates: Task<Void, Error>? = nil
     
+    // Add a reference to UserPreferences
+    private var userPreferences: UserPreferences?
+    
     override init() {
         super.init()
         
@@ -79,6 +82,11 @@ class SubscriptionService: NSObject, ObservableObject {
                 // Continue anyway - this is expected in the testing environment
             }
         }
+    }
+    
+    // Add a method to set the UserPreferences instance
+    func setUserPreferences(_ preferences: UserPreferences) {
+        self.userPreferences = preferences
     }
     
     deinit {
@@ -247,7 +255,11 @@ class SubscriptionService: NSObject, ObservableObject {
     // Update the user's subscription tier based on the purchased product
     @MainActor
     private func updateSubscriptionTier(for productID: String) async {
-        let preferences = UserPreferences()
+        // Use the injected UserPreferences instance if available, otherwise create a new one
+        guard let preferences = userPreferences else {
+            print("Warning: UserPreferences not set in SubscriptionService")
+            return
+        }
         
         switch productID {
         case SubscriptionProduct.premium.rawValue:

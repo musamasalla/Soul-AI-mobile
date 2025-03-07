@@ -22,8 +22,8 @@ struct Soul_AIApp: App {
     
     @StateObject private var themeManager = ThemeManager(isDarkMode: UserDefaults.standard.bool(forKey: "isDarkMode"))
     
-    // Initialize the payment queue handler lazily
-    private lazy var paymentQueueHandler = SKPaymentQueueHandler.shared
+    // Initialize the payment queue handler directly instead of lazily
+    private var paymentQueueHandler = SKPaymentQueueHandler.shared
     
     var body: some Scene {
         WindowGroup {
@@ -38,6 +38,9 @@ struct Soul_AIApp: App {
                     print("DEBUG: App detected isDarkMode change to \(newValue)")
                 }
                 .task {
+                    // Inject the UserPreferences instance into the SubscriptionService
+                    subscriptionService.setUserPreferences(preferences)
+                    
                     // Defer non-essential initialization to after the UI is shown
                     #if DEBUG
                     // Debug option to reset subscription tier to free

@@ -26,23 +26,21 @@ class AuthViewModel: ObservableObject {
         }
     }
     
-    func checkAuthStatus() {
+    func checkAuthStatus() async {
         print("DEBUG: Checking auth status")
-        Task {
-            let result = await supabaseService.getCurrentUser()
-            
-            await MainActor.run {
-                switch result {
-                case .success(let user):
-                    print("DEBUG: Auth status check - User: \(String(describing: user))")
-                    self.currentUser = user
-                    self.isAuthenticated = user != nil
-                case .failure(let error):
-                    print("DEBUG: Auth status check failed - Error: \(error.localizedDescription)")
-                    self.errorMessage = "Failed to check authentication status: \(error.localizedDescription)"
-                    self.isAuthenticated = false
-                    self.currentUser = nil
-                }
+        let result = await supabaseService.getCurrentUser()
+        
+        await MainActor.run {
+            switch result {
+            case .success(let user):
+                print("DEBUG: Auth status check - User: \(String(describing: user))")
+                self.currentUser = user
+                self.isAuthenticated = user != nil
+            case .failure(let error):
+                print("DEBUG: Auth status check failed - Error: \(error.localizedDescription)")
+                self.errorMessage = "Failed to check authentication status: \(error.localizedDescription)"
+                self.isAuthenticated = false
+                self.currentUser = nil
             }
         }
     }

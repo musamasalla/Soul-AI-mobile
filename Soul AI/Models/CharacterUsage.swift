@@ -1,6 +1,6 @@
 import Foundation
 
-struct CharacterUsage: Codable {
+class CharacterUsage: Codable {
     var totalCharactersUsed: Int
     var lastResetDate: Date
     var monthlyLimit: Int
@@ -34,7 +34,7 @@ struct CharacterUsage: Codable {
     }
     
     // Reset usage if a month has passed
-    mutating func checkAndResetIfNeeded() {
+    func checkAndResetIfNeeded() {
         let calendar = Calendar.current
         if let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()),
            lastResetDate < oneMonthAgo {
@@ -44,7 +44,7 @@ struct CharacterUsage: Codable {
     }
     
     // Add character usage
-    mutating func addUsage(_ characters: Int) {
+    func addUsage(_ characters: Int) {
         checkAndResetIfNeeded()
         totalCharactersUsed += characters
     }

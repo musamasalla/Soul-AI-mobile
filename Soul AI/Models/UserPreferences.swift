@@ -137,9 +137,8 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         // Load character usage
         if let savedUsageData = userDefaultsDict["characterUsage"] as? Data,
            let savedUsage = try? JSONDecoder().decode(CharacterUsage.self, from: savedUsageData) {
-            var usage = savedUsage
-            usage.checkAndResetIfNeeded() // Check if we need to reset based on date
-            self.characterUsage = usage
+            savedUsage.checkAndResetIfNeeded() // Check if we need to reset based on date
+            self.characterUsage = savedUsage
         }
         
         // Load notification preferences
