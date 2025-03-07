@@ -46,34 +46,68 @@ class PodcastViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        SupabaseService.shared.fetchPodcasts()
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                guard let self = self else { return }
+        // Since fetchPodcasts is no longer available, we'll use a direct HTTP request
+        guard let url = URL(string: "\(SupabaseConfig.supabaseUrl)/rest/v1/podcasts?select=*&order=created_at.desc") else {
+            self.errorMessage = "Invalid URL configuration."
+            self.isLoading = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Add additional headers for Supabase REST API
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
                 
-                if case .failure(let error) = completion {
+                if let error = error {
                     print("Error fetching podcasts: \(error.localizedDescription)")
                     self.errorMessage = "Failed to load Bible studies. Please try again later."
+                    return
                 }
                 
-                self.isLoading = false
-            }, receiveValue: { [weak self] podcasts in
-                guard let self = self else { return }
+                guard let data = data else {
+                    self.errorMessage = "No data received."
+                    return
+                }
                 
-                self.podcasts = podcasts
-                
-                // Check if there are any podcasts in generating status
-                let generatingPodcasts = podcasts.filter { $0.status == .generating }
-                if !generatingPodcasts.isEmpty {
-                    // Add their IDs to pending list
-                    for podcast in generatingPodcasts {
-                        self.pendingPodcastIds.insert(podcast.id)
+                do {
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                    decoder.dateDecodingStrategy = .formatted(dateFormatter)
+                    
+                    let podcasts = try decoder.decode([PodcastEntry].self, from: data)
+                    self.podcasts = podcasts
+                    
+                    // Check if there are any podcasts in generating status
+                    let generatingPodcasts = podcasts.filter { $0.status == PodcastStatus.generating }
+                    if !generatingPodcasts.isEmpty {
+                        // Add their IDs to pending list
+                        for podcast in generatingPodcasts {
+                            self.pendingPodcastIds.insert(podcast.id)
+                        }
+                        // Start polling if we have pending podcasts
+                        self.startPolling()
                     }
-                    // Start polling if we have pending podcasts
-                    self.startPolling()
+                } catch {
+                    print("Error decoding podcasts: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to decode podcast data. Please try again later."
                 }
-            })
-            .store(in: &cancellables)
+            }
+        }.resume()
     }
     
     func generatePodcast() {
@@ -91,19 +125,57 @@ class PodcastViewModel: ObservableObject {
             description: "Please wait while we create your Bible study...",
             chapter: bibleChapter,
             audioUrl: nil,
-            status: .generating,
+            status: PodcastStatus.generating,
             createdAt: Date()
         )
         
         // Add the temporary podcast to the list
         self.podcasts.insert(tempPodcast, at: 0)
         
-        SupabaseService.shared.generateBibleStudy(bibleChapter: bibleChapter)
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                guard let self = self else { return }
+        // Since generateBibleStudy is no longer available, we'll use a direct HTTP request
+        guard let url = URL(string: SupabaseConfig.podcastEndpoint) else {
+            self.errorMessage = "Invalid URL configuration."
+            self.isLoading = false
+            
+            // Remove the temporary podcast
+            self.podcasts.removeAll { $0.id == tempId }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Create request body
+        let requestBody: [String: Any] = [
+            "bibleChapter": bibleChapter,
+            "initialRequest": true
+        ]
+        
+        // Add request body
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            self.errorMessage = "Failed to serialize request."
+            self.isLoading = false
+            
+            // Remove the temporary podcast
+            self.podcasts.removeAll { $0.id == tempId }
+            return
+        }
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
                 
-                if case .failure(let error) = completion {
+                if let error = error {
                     print("Error generating podcast: \(error.localizedDescription)")
                     
                     // Provide more specific error messages based on error type
@@ -129,31 +201,53 @@ class PodcastViewModel: ObservableObject {
                         description: "There was an error generating this Bible study. Please try again.",
                         chapter: bibleChapter,
                         audioUrl: nil,
-                        status: .failed,
+                        status: PodcastStatus.failed,
                         createdAt: Date()
                     )
                     
                     // Add the fallback podcast to the list
                     self.podcasts.insert(fallbackPodcast, at: 0)
+                    return
                 }
                 
-                self.isLoading = false
-            }, receiveValue: { [weak self] podcast in
-                guard let self = self else { return }
-                
-                // Remove the temporary podcast
-                self.podcasts.removeAll { $0.id == tempId }
-                
-                // Add the new podcast to the list
-                self.podcasts.insert(podcast, at: 0)
-                
-                // If the podcast is still generating, add it to pending list and start polling
-                if podcast.status == .generating {
-                    self.pendingPodcastIds.insert(podcast.id)
-                    self.startPolling()
+                guard let data = data else {
+                    self.errorMessage = "No data received."
+                    
+                    // Remove the temporary podcast
+                    self.podcasts.removeAll { $0.id == tempId }
+                    return
                 }
-            })
-            .store(in: &cancellables)
+                
+                do {
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                    decoder.dateDecodingStrategy = .formatted(dateFormatter)
+                    
+                    let podcast = try decoder.decode(PodcastEntry.self, from: data)
+                    
+                    // Remove the temporary podcast
+                    self.podcasts.removeAll { $0.id == tempId }
+                    
+                    // Add the new podcast to the list
+                    self.podcasts.insert(podcast, at: 0)
+                    
+                    // If the podcast is still generating, add it to pending list and start polling
+                    if podcast.status == PodcastStatus.generating {
+                        self.pendingPodcastIds.insert(podcast.id)
+                        self.startPolling()
+                    }
+                } catch {
+                    print("Error decoding podcast: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to decode podcast data. Please try again later."
+                    
+                    // Remove the temporary podcast
+                    self.podcasts.removeAll { $0.id == tempId }
+                }
+            }
+        }.resume()
     }
     
     // Start polling for updates to pending podcasts
@@ -183,50 +277,83 @@ class PodcastViewModel: ObservableObject {
             return
         }
         
-        // Fetch the latest podcast data
-        SupabaseService.shared.fetchPodcasts()
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { completion in
-                if case .failure(let error) = completion {
+        // Fetch the latest podcast data using direct HTTP request
+        guard let url = URL(string: "\(SupabaseConfig.supabaseUrl)/rest/v1/podcasts?select=*&order=created_at.desc") else {
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Add additional headers for Supabase REST API
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                if let error = error {
                     print("Error checking pending podcasts: \(error.localizedDescription)")
                     // Don't stop polling on error, we'll try again
+                    return
                 }
-            }, receiveValue: { [weak self] podcasts in
-                guard let self = self else { return }
                 
-                // Update our podcast list
-                self.podcasts = podcasts
+                guard let data = data else {
+                    print("No data received when checking pending podcasts")
+                    return
+                }
                 
-                // Check if any pending podcasts are now complete
-                var stillPending = false
-                var completedIds = Set<String>()
-                
-                for id in self.pendingPodcastIds {
-                    if let podcast = podcasts.first(where: { $0.id == id }) {
-                        if podcast.status == .ready || podcast.status == .failed {
-                            // This podcast is no longer pending
-                            completedIds.insert(id)
+                do {
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                    decoder.dateDecodingStrategy = .formatted(dateFormatter)
+                    
+                    let podcasts = try decoder.decode([PodcastEntry].self, from: data)
+                    
+                    // Update our podcast list
+                    self.podcasts = podcasts
+                    
+                    // Check if any pending podcasts are now complete
+                    var stillPending = false
+                    var completedIds = Set<String>()
+                    
+                    for id in self.pendingPodcastIds {
+                        if let podcast = podcasts.first(where: { $0.id == id }) {
+                            if podcast.status == PodcastStatus.ready || podcast.status == PodcastStatus.failed {
+                                // This podcast is no longer pending
+                                completedIds.insert(id)
+                            } else {
+                                // Still pending
+                                stillPending = true
+                            }
                         } else {
-                            // Still pending
-                            stillPending = true
+                            // Podcast not found, mark for removal
+                            completedIds.insert(id)
                         }
-                    } else {
-                        // Podcast not found, mark for removal
-                        completedIds.insert(id)
                     }
+                    
+                    // Remove completed podcasts from pending set
+                    for id in completedIds {
+                        self.pendingPodcastIds.remove(id)
+                    }
+                    
+                    // If no podcasts are still pending, stop polling
+                    if !stillPending {
+                        self.stopPolling()
+                    }
+                } catch {
+                    print("Error decoding podcasts during polling: \(error.localizedDescription)")
                 }
-                
-                // Remove completed podcasts from pending set
-                for id in completedIds {
-                    self.pendingPodcastIds.remove(id)
-                }
-                
-                // If no podcasts are still pending, stop polling
-                if !stillPending {
-                    self.stopPolling()
-                }
-            })
-            .store(in: &cancellables)
+            }
+        }.resume()
     }
     
     func getRandomSelection() {

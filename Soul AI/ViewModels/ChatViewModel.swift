@@ -33,36 +33,27 @@ class ChatViewModel: ObservableObject {
         // Start AI processing
         isProcessing = true
         
-        // Convert messages to the format expected by the API
-        let chatHistory = messages.map { message -> [String: String] in
-            return [
-                "role": message.role == .user ? "user" : "assistant",
-                "content": message.content
-            ]
-        }
-        
-        // Call the Supabase service
-        SupabaseService.shared.sendMessage(message: userMessage.content, chatHistory: chatHistory)
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                guard let self = self else { return }
+        // Call the Supabase service with the new completion-based API
+        SupabaseService.shared.sendMessage(message: userMessage.content) { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isProcessing = false
                 
-                if case .failure(let error) = completion {
+                switch result {
+                case .success(let response):
+                    let assistantMessage = Message(content: response, role: .assistant)
+                    self.messages.append(assistantMessage)
+                    
+                case .failure(let error):
                     print("Error getting response: \(error.localizedDescription)")
                     // Use fallback response in case of error
                     let fallbackResponse = self.christianResponses.randomElement() ?? "May God bless you on your journey."
                     let assistantMessage = Message(content: fallbackResponse, role: .assistant)
                     self.messages.append(assistantMessage)
                 }
-                
-                self.isProcessing = false
-            }, receiveValue: { [weak self] response in
-                guard let self = self else { return }
-                
-                let assistantMessage = Message(content: response, role: .assistant)
-                self.messages.append(assistantMessage)
-            })
-            .store(in: &cancellables)
+            }
+        }
     }
     
     // Add some initial messages for demonstration
@@ -78,59 +69,19 @@ class ChatViewModel: ObservableObject {
     
     // Get daily inspiration
     func getDailyInspiration(completion: @escaping (String) -> Void) {
-        SupabaseService.shared.getDailyInspiration()
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { completionStatus in
-                if case .failure(let error) = completionStatus {
-                    print("Error getting daily inspiration: \(error.localizedDescription)")
-                    // Use fallback in case of error
-                    let fallbackVerse = self.christianResponses.randomElement() ?? "May God bless you today and always."
-                    let fallbackReflection = "God has a purpose and plan for your life. Even in difficult times, He is working all things together for your good. Trust in His timing and His wisdom."
-                    let fallbackPrayer = "Dear Lord, help me to trust in Your perfect plan for my life. Give me the patience to wait on Your timing and the faith to believe in Your promises. Amen."
-                    
-                    let formattedInspiration = """
-                    \(fallbackVerse)
-                    
-                    \(fallbackReflection)
-                    
-                    \(fallbackPrayer)
-                    """
-                    
-                    completion(formattedInspiration)
-                }
-            }, receiveValue: { inspiration in
-                // Format the inspiration if needed
-                // This assumes the API might return a simple string
-                // In a real app, you might want to structure this better
-                
-                // Check if the inspiration already has the expected format
-                if inspiration.contains("\n\n") {
-                    completion(inspiration)
-                } else {
-                    // If not, try to format it
-                    let components = inspiration.components(separatedBy: " - ")
-                    if components.count >= 2 {
-                        let verse = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
-                        let reference = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                        
-                        let reflection = "God has a purpose and plan for your life. Even in difficult times, He is working all things together for your good. Trust in His timing and His wisdom."
-                        let prayer = "Dear Lord, help me to trust in Your perfect plan for my life. Give me the patience to wait on Your timing and the faith to believe in Your promises. Amen."
-                        
-                        let formattedInspiration = """
-                        \(verse) - \(reference)
-                        
-                        \(reflection)
-                        
-                        \(prayer)
-                        """
-                        
-                        completion(formattedInspiration)
-                    } else {
-                        // If we can't parse it, just return it as is
-                        completion(inspiration)
-                    }
-                }
-            })
-            .store(in: &cancellables)
+        // Since the getDailyInspiration method is no longer available, we'll use a fallback
+        let fallbackVerse = self.christianResponses.randomElement() ?? "May God bless you today and always."
+        let fallbackReflection = "God has a purpose and plan for your life. Even in difficult times, He is working all things together for your good. Trust in His timing and His wisdom."
+        let fallbackPrayer = "Dear Lord, help me to trust in Your perfect plan for my life. Give me the patience to wait on Your timing and the faith to believe in Your promises. Amen."
+        
+        let formattedInspiration = """
+        \(fallbackVerse)
+        
+        \(fallbackReflection)
+        
+        \(fallbackPrayer)
+        """
+        
+        completion(formattedInspiration)
     }
 } 

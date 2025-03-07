@@ -18,7 +18,8 @@ struct SupabaseConfig {
     static func headers() -> [String: String] {
         return [
             "apikey": supabaseAnonKey,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": "Bearer \(supabaseAnonKey)"
         ]
     }
 } 

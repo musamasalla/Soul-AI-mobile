@@ -52,12 +52,39 @@ class MeditationViewModel: NSObject, ObservableObject {
             "duration": 5 // Basic meditations are fixed at 5 minutes
         ]
         
-        SupabaseService.shared.generateMeditationWithMood(requestBody: requestBody)
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                guard let self = self else { return }
+        // Since the generateMeditationWithMood method is no longer available,
+        // we'll use a direct HTTP request to the meditation endpoint
+        guard let url = URL(string: SupabaseConfig.meditationEndpoint) else {
+            self.errorMessage = "Invalid URL configuration."
+            self.isLoading = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Add request body
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            self.errorMessage = "Failed to serialize request."
+            self.isLoading = false
+            return
+        }
+        
+        // Perform the request
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
                 
-                if case .failure(let error) = completion {
+                if let error = error {
                     print("Error generating meditation: \(error.localizedDescription)")
                     self.errorMessage = "Failed to generate meditation. Please try again."
                     
@@ -67,29 +94,46 @@ class MeditationViewModel: NSObject, ObservableObject {
                         content: "Take a deep breath and reflect on God's love. Remember that in all things, God works for the good of those who love him.",
                         duration: 5
                     )
+                    return
                 }
                 
-                self.isLoading = false
-            }, receiveValue: { [weak self] response in
-                guard let self = self else { return }
+                guard let data = data else {
+                    self.errorMessage = "No data received."
+                    return
+                }
                 
-                // Clean up title but preserve formatting for content
-                var title = response.title
-                title = title.replacingOccurrences(of: "###", with: "")
-                title = title.replacingOccurrences(of: "**", with: "")
-                title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                // Store the raw content
-                let content = response.content
-                
-                // Create meditation object
-                self.meditation = Meditation(
-                    title: title,
-                    content: content,
-                    duration: response.duration > 0 ? response.duration : 5
-                )
-            })
-            .store(in: &cancellables)
+                do {
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode(MeditationResponse.self, from: data)
+                    
+                    // Clean up title but preserve formatting for content
+                    var title = response.title
+                    title = title.replacingOccurrences(of: "###", with: "")
+                    title = title.replacingOccurrences(of: "**", with: "")
+                    title = title.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                    
+                    // Store the raw content
+                    let content = response.content
+                    
+                    // Create meditation object
+                    self.meditation = Meditation(
+                        title: title,
+                        content: content,
+                        duration: response.duration > 0 ? response.duration : 5
+                    )
+                } catch {
+                    print("Error decoding meditation response: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to decode meditation response. Please try again."
+                    
+                    // Use fallback content
+                    self.meditation = Meditation(
+                        title: "Meditation for Your Current Mood",
+                        content: "Take a deep breath and reflect on God's love. Remember that in all things, God works for the good of those who love him.",
+                        duration: 5
+                    )
+                }
+            }
+        }.resume()
     }
     
     // Generate advanced meditation (premium feature)
@@ -145,13 +189,39 @@ class MeditationViewModel: NSObject, ObservableObject {
             self.showMeditation = true
         }
         #else
-        // Original code for production
-        SupabaseService.shared.generateAdvancedMeditation(requestBody: requestBody)
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                guard let self = self else { return }
+        // Since the generateAdvancedMeditation method is no longer available,
+        // we'll use a direct HTTP request to the advanced meditation endpoint
+        guard let url = URL(string: SupabaseConfig.advancedMeditationEndpoint) else {
+            self.errorMessage = "Invalid URL configuration."
+            self.isLoading = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Add request body
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            self.errorMessage = "Failed to serialize request."
+            self.isLoading = false
+            return
+        }
+        
+        // Perform the request
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
                 
-                if case .failure(let error) = completion {
+                if let error = error {
                     print("Error generating advanced meditation: \(error.localizedDescription)")
                     self.errorMessage = "Failed to generate meditation. Please try again."
                     
@@ -161,20 +231,44 @@ class MeditationViewModel: NSObject, ObservableObject {
                         content: "Take a deep breath and reflect on God's love. Remember that in all things, God works for the good of those who love him.",
                         duration: self.meditationDuration
                     )
+                    return
                 }
                 
-                self.isLoading = false
-            }, receiveValue: { [weak self] meditation in
-                guard let self = self else { return }
+                guard let data = data else {
+                    self.errorMessage = "No data received."
+                    return
+                }
                 
-                self.meditation = meditation
-                self.showMeditation = true
-            })
-            .store(in: &cancellables)
+                do {
+                    let decoder = JSONDecoder()
+                    let meditation = try decoder.decode(Meditation.self, from: data)
+                    
+                    self.meditation = meditation
+                    self.showMeditation = true
+                } catch {
+                    print("Error decoding meditation response: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to decode meditation response. Please try again."
+                    
+                    // Use fallback content
+                    self.meditation = Meditation(
+                        title: "Advanced Meditation for \(self.selectedTopic)",
+                        content: "Take a deep breath and reflect on God's love. Remember that in all things, God works for the good of those who love him.",
+                        duration: self.meditationDuration
+                    )
+                }
+            }
+        }.resume()
         #endif
     }
     
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
+}
+
+// Define the MeditationResponse struct for decoding API responses
+struct MeditationResponse: Codable {
+    let title: String
+    let content: String
+    let duration: Int
 } 

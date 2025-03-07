@@ -200,8 +200,8 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         return currentUser
     }
     
-    func getSubscriptionStatus() -> SubscriptionStatus {
-        return SubscriptionStatus(
+    func getSubscriptionStatus() -> UserSubscriptionStatus {
+        return UserSubscriptionStatus(
             isActive: isSubscriptionActive,
             tier: subscriptionTier.rawValue,
             expiresAt: subscriptionExpiryDate

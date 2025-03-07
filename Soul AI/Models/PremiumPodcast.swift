@@ -1,41 +1,30 @@
 import Foundation
 
-struct PremiumPodcast: Identifiable, Codable {
+struct PremiumPodcast: Codable, Identifiable {
     let id: String
     let title: String
     let description: String
-    let topic: String
     let audioUrl: String?
-    let status: PodcastStatus
+    let duration: Int
     let createdAt: Date
     let updatedAt: Date?
-    let duration: Int // Duration in minutes
-    let characterCount: Int // Character count used for this podcast
+    let topic: String
+    let voices: [String]
+    let status: PodcastStatus
+    let characterCount: Int
     
     enum CodingKeys: String, CodingKey {
         case id
         case title
         case description
-        case topic
         case audioUrl = "audio_url"
-        case status
+        case duration
         case createdAt = "created_at"
         case updatedAt = "updated_at"
-        case duration
+        case topic
+        case voices
+        case status
         case characterCount = "character_count"
-    }
-    
-    init(id: String, title: String, description: String, topic: String, audioUrl: String?, status: PodcastStatus, duration: Int, characterCount: Int, createdAt: Date) {
-        self.id = id
-        self.title = title
-        self.description = description
-        self.topic = topic
-        self.audioUrl = audioUrl
-        self.status = status
-        self.duration = duration
-        self.characterCount = characterCount
-        self.createdAt = createdAt
-        self.updatedAt = nil
     }
 }
 

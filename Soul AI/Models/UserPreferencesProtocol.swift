@@ -4,7 +4,7 @@ protocol UserPreferencesProtocol {
     // User state
     func isUserLoggedIn() -> Bool
     func getCurrentUser() -> User?
-    func getSubscriptionStatus() -> SubscriptionStatus
+    func getSubscriptionStatus() -> UserSubscriptionStatus
     func clearUserData()
     
     // Character usage
