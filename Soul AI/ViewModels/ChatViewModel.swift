@@ -33,8 +33,16 @@ class ChatViewModel: ObservableObject {
         // Start AI processing
         isProcessing = true
         
-        // Call the Supabase service with the new completion-based API
-        SupabaseService.shared.sendMessage(message: userMessage.content) { [weak self] result in
+        // Convert messages to the format expected by the API
+        let history = messages.dropLast().map { message -> [String: String] in
+            return [
+                "role": message.role.rawValue,
+                "content": message.content
+            ]
+        }
+        
+        // Call the updated SupabaseService method with chat history
+        SupabaseService.shared.sendMessage(message: userMessage.content, history: Array(history)) { [weak self] result in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
@@ -69,19 +77,27 @@ class ChatViewModel: ObservableObject {
     
     // Get daily inspiration
     func getDailyInspiration(completion: @escaping (String) -> Void) {
-        // Since the getDailyInspiration method is no longer available, we'll use a fallback
-        let fallbackVerse = self.christianResponses.randomElement() ?? "May God bless you today and always."
-        let fallbackReflection = "God has a purpose and plan for your life. Even in difficult times, He is working all things together for your good. Trust in His timing and His wisdom."
-        let fallbackPrayer = "Dear Lord, help me to trust in Your perfect plan for my life. Give me the patience to wait on Your timing and the faith to believe in Your promises. Amen."
-        
-        let formattedInspiration = """
-        \(fallbackVerse)
-        
-        \(fallbackReflection)
-        
-        \(fallbackPrayer)
-        """
-        
-        completion(formattedInspiration)
+        SupabaseService.shared.getDailyInspiration { result in
+            switch result {
+            case .success(let inspiration):
+                completion(inspiration)
+            case .failure(let error):
+                print("Error getting daily inspiration: \(error.localizedDescription)")
+                // Use fallback inspiration in case of error
+                let fallbackVerse = self.christianResponses.randomElement() ?? "May God bless you today and always."
+                let fallbackReflection = "God has a purpose and plan for your life. Even in difficult times, He is working all things together for your good. Trust in His timing and His wisdom."
+                let fallbackPrayer = "Dear Lord, help me to trust in Your perfect plan for my life. Give me the patience to wait on Your timing and the faith to believe in Your promises. Amen."
+                
+                let formattedInspiration = """
+                \(fallbackVerse)
+                
+                \(fallbackReflection)
+                
+                \(fallbackPrayer)
+                """
+                
+                completion(formattedInspiration)
+            }
+        }
     }
 } 

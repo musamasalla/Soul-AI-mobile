@@ -27,14 +27,15 @@ class SupabaseService: SupabaseServiceProtocol {
     
     // MARK: - Chat Methods
     
-    func sendMessage(message: String, completion: @escaping (Result<String, Error>) -> Void) {
+    func sendMessage(message: String, history: [[String: String]] = [], completion: @escaping (Result<String, Error>) -> Void) {
         guard let url = URL(string: SupabaseConfig.chatEndpoint) else {
             completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
             return
         }
         
         let requestBody: [String: Any] = [
-            "message": message
+            "message": message,
+            "history": history
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
@@ -56,12 +57,12 @@ class SupabaseService: SupabaseServiceProtocol {
                 return
             }
             
-                guard let httpResponse = response as? HTTPURLResponse else {
+            guard let httpResponse = response as? HTTPURLResponse else {
                 completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
                 return
-                }
-                
-                guard (200...299).contains(httpResponse.statusCode) else {
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
                 completion(.failure(NSError(domain: "SupabaseErrorDomain", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(httpResponse.statusCode)"])))
                 return
             }
@@ -71,10 +72,20 @@ class SupabaseService: SupabaseServiceProtocol {
                 return
             }
             
-                if let responseString = String(data: data, encoding: .utf8) {
-                completion(.success(responseString))
-            } else {
-                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"])))
+            do {
+                let decoder = JSONDecoder()
+                let chatResponse = try decoder.decode(ChatResponse.self, from: data)
+                completion(.success(chatResponse.response))
+            } catch {
+                // Try to extract the response directly if the JSON structure is different
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let response = json["response"] as? String {
+                    completion(.success(response))
+                } else if let responseString = String(data: data, encoding: .utf8) {
+                    completion(.success(responseString))
+                } else {
+                    completion(.failure(error))
+                }
             }
         }
         
@@ -385,6 +396,215 @@ class SupabaseService: SupabaseServiceProtocol {
                 print("DEBUG: Error getting Supabase session: \(error.localizedDescription)")
             }
         }
+    }
+    
+    // MARK: - Meditation Methods
+    
+    func generateMeditation(mood: String, topic: String, duration: Int, completion: @escaping (Result<Meditation, Error>) -> Void) {
+        guard let url = URL(string: SupabaseConfig.meditationEndpoint) else {
+            completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
+            return
+        }
+        
+        let requestBody: [String: Any] = [
+            "mood": mood,
+            "topic": topic,
+            "duration": duration,
+            "energyLevel": 5,
+            "stressLevel": 5
+        ]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
+            completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to serialize request"])))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = jsonData
+        
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(httpResponse.statusCode)"])))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                return
+            }
+            
+            do {
+                let decoder = JSONDecoder()
+                let meditationResponse = try decoder.decode(MeditationResponse.self, from: data)
+                
+                // Clean up title but preserve formatting for content
+                var title = meditationResponse.title
+                title = title.replacingOccurrences(of: "###", with: "")
+                title = title.replacingOccurrences(of: "**", with: "")
+                title = title.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                
+                let meditation = Meditation(
+                    title: title,
+                    content: meditationResponse.content,
+                    duration: meditationResponse.duration > 0 ? meditationResponse.duration : duration
+                )
+                
+                completion(.success(meditation))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+        
+        task.resume()
+    }
+    
+    func generateAdvancedMeditation(mood: String, topic: String, duration: Int, scripture: String?, completion: @escaping (Result<Meditation, Error>) -> Void) {
+        guard let url = URL(string: SupabaseConfig.meditationEndpoint) else {
+            completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
+            return
+        }
+        
+        var requestBody: [String: Any] = [
+            "mood": mood,
+            "topic": topic,
+            "duration": duration,
+            "energyLevel": 5,
+            "stressLevel": 5
+        ]
+        
+        if let scripture = scripture, !scripture.isEmpty {
+            requestBody["scripture"] = scripture
+        }
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
+            completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to serialize request"])))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = jsonData
+        
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(httpResponse.statusCode)"])))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                return
+            }
+            
+            do {
+                let decoder = JSONDecoder()
+                let meditationResponse = try decoder.decode(MeditationResponse.self, from: data)
+                
+                // Clean up title but preserve formatting for content
+                var title = meditationResponse.title
+                title = title.replacingOccurrences(of: "###", with: "")
+                title = title.replacingOccurrences(of: "**", with: "")
+                title = title.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                
+                let meditation = Meditation(
+                    title: title,
+                    content: meditationResponse.content,
+                    duration: meditationResponse.duration > 0 ? meditationResponse.duration : duration
+                )
+                
+                completion(.success(meditation))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+        
+        task.resume()
+    }
+    
+    // MARK: - Daily Inspiration Methods
+    
+    func getDailyInspiration(completion: @escaping (Result<String, Error>) -> Void) {
+        guard let url = URL(string: SupabaseConfig.dailyInspirationEndpoint) else {
+            completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        for (key, value) in SupabaseConfig.headers() {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(httpResponse.statusCode)"])))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                return
+            }
+            
+            do {
+                let decoder = JSONDecoder()
+                let inspirationResponse = try decoder.decode(InspirationResponse.self, from: data)
+                
+                let formattedInspiration = """
+                \(inspirationResponse.verse)
+                
+                \(inspirationResponse.reflection)
+                
+                \(inspirationResponse.prayer)
+                """
+                
+                completion(.success(formattedInspiration))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+        
+        task.resume()
     }
 }
 

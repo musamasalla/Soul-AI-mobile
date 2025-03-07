@@ -1,6 +1,6 @@
 import Foundation
 
-enum MessageRole {
+enum MessageRole: String {
     case user
     case assistant
 }
