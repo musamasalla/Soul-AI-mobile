@@ -91,45 +91,51 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         self.prayerReminderNotifications = false
         self.currentUser = nil
         
-        // Now load values from UserDefaults
-        // Since all properties are already initialized, didSet won't cause issues
+        // Batch read from UserDefaults to improve performance
+        let defaults = UserDefaults.standard
+        let allKeys = [
+            "hasSeenWelcome", "isDarkMode", "fontSize", "userName", 
+            "subscriptionTier", "subscriptionExpiryDate", "characterUsage",
+            "dailyInspirationNotifications", "prayerReminderNotifications", "currentUser"
+        ]
+        let userDefaultsDict = defaults.dictionaryRepresentation().filter { allKeys.contains($0.key) }
         
         // Load hasSeenWelcome
-        self.hasSeenWelcome = UserDefaults.standard.bool(forKey: "hasSeenWelcome")
+        self.hasSeenWelcome = userDefaultsDict["hasSeenWelcome"] as? Bool ?? false
         
         // Load isDarkMode
-        if UserDefaults.standard.object(forKey: "isDarkMode") != nil {
-            self.isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
+        if let isDarkMode = userDefaultsDict["isDarkMode"] as? Bool {
+            self.isDarkMode = isDarkMode
         } else {
             // Use system appearance as default
             let systemAppearance = UITraitCollection.current.userInterfaceStyle
             self.isDarkMode = systemAppearance == .dark
             // Save the initial value
-            UserDefaults.standard.set(self.isDarkMode, forKey: "isDarkMode")
+            defaults.set(self.isDarkMode, forKey: "isDarkMode")
         }
         
         // Load fontSize
-        if let fontSizeRawValue = UserDefaults.standard.string(forKey: "fontSize"),
+        if let fontSizeRawValue = userDefaultsDict["fontSize"] as? String,
            let fontSize = FontSize(rawValue: fontSizeRawValue) {
             self.fontSize = fontSize
         }
         
         // Load userName
-        if let savedUserName = UserDefaults.standard.string(forKey: "userName"), !savedUserName.isEmpty {
+        if let savedUserName = userDefaultsDict["userName"] as? String, !savedUserName.isEmpty {
             self.userName = savedUserName
         }
         
         // Load subscriptionTier
-        if let subscriptionTierRawValue = UserDefaults.standard.string(forKey: "subscriptionTier"),
+        if let subscriptionTierRawValue = userDefaultsDict["subscriptionTier"] as? String,
            let tier = SubscriptionTier(rawValue: subscriptionTierRawValue) {
             self.subscriptionTier = tier
         }
         
         // Load subscriptionExpiryDate
-        self.subscriptionExpiryDate = UserDefaults.standard.object(forKey: "subscriptionExpiryDate") as? Date
+        self.subscriptionExpiryDate = userDefaultsDict["subscriptionExpiryDate"] as? Date
         
         // Load character usage
-        if let savedUsageData = UserDefaults.standard.data(forKey: "characterUsage"),
+        if let savedUsageData = userDefaultsDict["characterUsage"] as? Data,
            let savedUsage = try? JSONDecoder().decode(CharacterUsage.self, from: savedUsageData) {
             var usage = savedUsage
             usage.checkAndResetIfNeeded() // Check if we need to reset based on date
@@ -137,17 +143,20 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         }
         
         // Load notification preferences
-        self.dailyInspirationNotifications = UserDefaults.standard.bool(forKey: "dailyInspirationNotifications")
-        self.prayerReminderNotifications = UserDefaults.standard.bool(forKey: "prayerReminderNotifications")
+        self.dailyInspirationNotifications = userDefaultsDict["dailyInspirationNotifications"] as? Bool ?? false
+        self.prayerReminderNotifications = userDefaultsDict["prayerReminderNotifications"] as? Bool ?? false
         
         // Load current user
-        if let userData = UserDefaults.standard.data(forKey: "currentUser"),
+        if let userData = userDefaultsDict["currentUser"] as? Data,
            let user = try? JSONDecoder().decode(User.self, from: userData) {
             self.currentUser = user
         }
         
-        // Fetch subscription status from Supabase
+        // Defer subscription status fetch to happen after app is visible
+        // This improves initial launch time
         Task {
+            // Add a small delay to prioritize UI rendering
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             await fetchSubscriptionStatus()
         }
     }

@@ -59,8 +59,16 @@ class SubscriptionService: NSObject, ObservableObject {
     
     override init() {
         super.init()
-        self.updates = observeTransactionUpdates()
+        
+        // Defer initialization to improve app launch time
         Task {
+            // Add a small delay to prioritize UI rendering
+            try? await Task.sleep(nanoseconds: 700_000_000) // 0.7 seconds
+            
+            // Start transaction updates observer
+            self.updates = observeTransactionUpdates()
+            
+            // Request products after a delay
             await requestProducts()
             
             // Try to update purchased products

@@ -5,24 +5,32 @@ import Supabase
 class SupabaseService: SupabaseServiceProtocol {
     static let shared = SupabaseService()
     
-    private let session: URLSession
-    private let supabase: SupabaseClient
-    
-    private init() {
+    private lazy var session: URLSession = {
         // Create a custom URLSession configuration with increased timeout
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 60.0 // Increase timeout to 60 seconds
         configuration.timeoutIntervalForResource = 60.0
-        self.session = URLSession(configuration: configuration)
         
+        // Optimize for mobile networks
+        configuration.waitsForConnectivity = true
+        configuration.httpMaximumConnectionsPerHost = 5
+        
+        return URLSession(configuration: configuration)
+    }()
+    
+    private lazy var supabase: SupabaseClient = {
         // Initialize Supabase client
         let supabaseUrl = URL(string: SupabaseConfig.supabaseUrl)!
         let supabaseKey = SupabaseConfig.supabaseAnonKey
         
-        self.supabase = SupabaseClient(
+        return SupabaseClient(
             supabaseURL: supabaseUrl,
             supabaseKey: supabaseKey
         )
+    }()
+    
+    private init() {
+        // Empty init - lazy properties will be initialized when needed
     }
     
     // MARK: - Chat Methods

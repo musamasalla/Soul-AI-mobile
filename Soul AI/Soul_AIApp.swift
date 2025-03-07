@@ -10,12 +10,20 @@ import StoreKit
 
 @main
 struct Soul_AIApp: App {
+    // Use lazy initialization for services that aren't needed immediately
     @StateObject private var preferences = UserPreferences()
+    
+    // Lazy load subscription service only when needed
+    private var subscriptionServiceProvider: () -> SubscriptionService = {
+        let service = SubscriptionService.shared
+        return service
+    }
     @StateObject private var subscriptionService = SubscriptionService.shared
+    
     @StateObject private var themeManager = ThemeManager(isDarkMode: UserDefaults.standard.bool(forKey: "isDarkMode"))
     
-    // Initialize the payment queue handler
-    private let paymentQueueHandler = SKPaymentQueueHandler.shared
+    // Initialize the payment queue handler lazily
+    private lazy var paymentQueueHandler = SKPaymentQueueHandler.shared
     
     var body: some Scene {
         WindowGroup {
@@ -29,7 +37,8 @@ struct Soul_AIApp: App {
                     themeManager.updateColorScheme(isDarkMode: newValue)
                     print("DEBUG: App detected isDarkMode change to \(newValue)")
                 }
-                .onAppear {
+                .task {
+                    // Defer non-essential initialization to after the UI is shown
                     #if DEBUG
                     // Debug option to reset subscription tier to free
                     // Uncomment the line below to reset to free plan for testing
@@ -42,6 +51,7 @@ struct Soul_AIApp: App {
                     
                     // Start listening for transactions
                     // This is handled by our SKPaymentQueueHandler
+                    _ = paymentQueueHandler
                 }
         }
     }

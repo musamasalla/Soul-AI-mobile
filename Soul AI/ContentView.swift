@@ -39,9 +39,9 @@ struct ContentView: View {
         .environmentObject(preferences)
         .environmentObject(authViewModel)
         .preferredColorScheme(themeManager.colorScheme)
-        .onAppear {
-            // Update user preferences if authenticated
-            if let user = authViewModel.currentUser {
+        .task {
+            // Defer authentication check to after view appears
+            if authViewModel.isAuthenticated, let user = authViewModel.currentUser {
                 preferences.userName = user.name
             }
             
@@ -54,7 +54,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             // Chat Tab
             NavigationView {
-                ChatView()
+                LazyView(ChatView())
                     .navigationBarItems(trailing: settingsButton)
             }
             .preferredColorScheme(themeManager.colorScheme)
@@ -65,7 +65,7 @@ struct ContentView: View {
             
             // Daily Inspiration Tab
             NavigationView {
-                DailyInspirationView()
+                LazyView(DailyInspirationView())
                     .navigationBarItems(trailing: settingsButton)
             }
             .preferredColorScheme(themeManager.colorScheme)
@@ -76,7 +76,7 @@ struct ContentView: View {
             
             // Meditation Tab
             NavigationView {
-                MeditationView()
+                LazyView(MeditationView())
                     .navigationBarItems(trailing: settingsButton)
             }
             .preferredColorScheme(themeManager.colorScheme)
@@ -87,7 +87,7 @@ struct ContentView: View {
             
             // Bible Study Tab
             NavigationView {
-                BibleStudyView()
+                LazyView(BibleStudyView())
                     .navigationBarItems(trailing: settingsButton)
             }
             .preferredColorScheme(themeManager.colorScheme)
@@ -98,32 +98,34 @@ struct ContentView: View {
             
             // Premium Podcasts Tab (always included but conditionally shown)
             NavigationView {
-                Group {
-                    if preferences.isSubscriptionActive && preferences.subscriptionTier == .premium {
-                        PremiumPodcastView()
-                            .navigationBarItems(trailing: settingsButton)
-                    } else {
-                        // Placeholder view when premium is not active
-                        VStack {
-                            Text("Premium Content")
-                                .font(.title)
-                            Text("Subscribe to access premium podcasts")
-                                .foregroundColor(.secondary)
-                            Button("Subscribe Now") {
-                                // Show subscription view
-                                selectedTab = 0 // Switch to main tab
-                                showSettings = true // Open settings which has subscription options
+                LazyView(
+                    Group {
+                        if preferences.isSubscriptionActive && preferences.subscriptionTier == .premium {
+                            PremiumPodcastView()
+                                .navigationBarItems(trailing: settingsButton)
+                        } else {
+                            // Placeholder view when premium is not active
+                            VStack {
+                                Text("Premium Content")
+                                    .font(.title)
+                                Text("Subscribe to access premium podcasts")
+                                    .foregroundColor(.secondary)
+                                Button("Subscribe Now") {
+                                    // Show subscription view
+                                    selectedTab = 0 // Switch to main tab
+                                    showSettings = true // Open settings which has subscription options
+                                }
+                                .padding()
+                                .background(Color.AppTheme.brandMint)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                                .padding(.top, 20)
                             }
                             .padding()
-                            .background(Color.AppTheme.brandMint)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                            .padding(.top, 20)
+                            .navigationBarItems(trailing: settingsButton)
                         }
-                        .padding()
-                        .navigationBarItems(trailing: settingsButton)
                     }
-                }
+                )
             }
             .preferredColorScheme(themeManager.colorScheme)
             .tabItem {
@@ -147,6 +149,19 @@ struct ContentView: View {
                 .font(.system(size: 18))
                 .foregroundColor(.AppTheme.brandMint)
         }
+    }
+}
+
+// Add a LazyView struct to defer loading of views
+struct LazyView<Content: View>: View {
+    let build: () -> Content
+    
+    init(_ build: @autoclosure @escaping () -> Content) {
+        self.build = build
+    }
+    
+    var body: Content {
+        build()
     }
 }
 

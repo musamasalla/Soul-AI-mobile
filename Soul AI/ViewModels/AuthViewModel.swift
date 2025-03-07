@@ -17,7 +17,13 @@ class AuthViewModel: ObservableObject {
     
     init(supabaseService: SupabaseServiceProtocol = SupabaseService.shared) {
         self.supabaseService = supabaseService
-        checkAuthStatus()
+        
+        // Defer authentication check to improve startup time
+        Task {
+            // Add a small delay to prioritize UI rendering
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+            await checkAuthStatus()
+        }
     }
     
     func checkAuthStatus() {
