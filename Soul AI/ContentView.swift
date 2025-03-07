@@ -53,6 +53,7 @@ struct ContentView: View {
                 ChatView()
                     .navigationBarItems(trailing: settingsButton)
             }
+            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             .tabItem {
                 Label("Chat", systemImage: "message.fill")
             }
@@ -63,6 +64,7 @@ struct ContentView: View {
                 DailyInspirationView()
                     .navigationBarItems(trailing: settingsButton)
             }
+            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             .tabItem {
                 Label("Inspiration", systemImage: "sun.max.fill")
             }
@@ -73,6 +75,7 @@ struct ContentView: View {
                 MeditationView()
                     .navigationBarItems(trailing: settingsButton)
             }
+            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             .tabItem {
                 Label("Meditation", systemImage: "heart.fill")
             }
@@ -83,6 +86,7 @@ struct ContentView: View {
                 BibleStudyView()
                     .navigationBarItems(trailing: settingsButton)
             }
+            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             .tabItem {
                 Label("Bible Study", systemImage: "book.fill")
             }
@@ -117,6 +121,7 @@ struct ContentView: View {
                     }
                 }
             }
+            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             .tabItem {
                 Label("Premium", systemImage: "star.fill")
             }

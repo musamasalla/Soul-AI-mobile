@@ -9,7 +9,7 @@ struct SoulAILogo: View {
         ZStack {
             // Dynamic background based on color scheme
             Rectangle()
-                .fill(colorScheme == .dark ? Color.black : Color.white)
+                .fill(colorScheme == .dark ? Color.AppTheme.darkModeCardBackground : Color.AppTheme.lightModeCardBackground)
                 .frame(width: size, height: size)
                 .overlay(
                     Rectangle()

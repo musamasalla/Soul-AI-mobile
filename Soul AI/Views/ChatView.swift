@@ -54,7 +54,7 @@ struct ChatView: View {
             
             // Sidebar overlay
             if showSidebar {
-                Color(colorScheme == .dark ? .black : .gray).opacity(0.5)
+                Color.AppTheme.primaryText.opacity(0.5)
                     .ignoresSafeArea()
                     .onTapGesture {
                         withAnimation {
@@ -203,7 +203,7 @@ struct ChatView: View {
                     .frame(width: 32, height: 32)
                     .overlay(
                         Text(String(preferences.userName.prefix(2)))
-                            .foregroundColor(.black)
+                            .foregroundColor(.AppTheme.primaryText)
                             .font(.system(size: 14, weight: .medium))
                     )
                 

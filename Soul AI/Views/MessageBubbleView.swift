@@ -44,8 +44,8 @@ struct MessageBubbleView: View {
             }
         }
         .background(message.role == .assistant ? 
-                    (colorScheme == .dark ? Color.AppTheme.darkModeCardBackground : Color.AppTheme.lightModeCardBackground) : 
-                    (colorScheme == .dark ? Color(.systemGray6).opacity(0.1) : Color(.systemGray6).opacity(0.2)))
+                    Color.AppTheme.cardBackground : 
+                    (colorScheme == .dark ? Color.AppTheme.darkModeCardBackground.opacity(0.5) : Color.AppTheme.lightModeCardBackground.opacity(0.5)))
     }
     
     private var assistantIcon: some View {
@@ -53,7 +53,7 @@ struct MessageBubbleView: View {
             .foregroundColor(Color.brandMint)
             .font(.system(size: 16))
             .frame(width: 24, height: 24)
-            .background(Circle().fill(colorScheme == .dark ? Color.black : Color.white))
+            .background(Circle().fill(colorScheme == .dark ? Color.AppTheme.darkModeBackground : Color.AppTheme.lightModeBackground))
             .overlay(
                 Circle()
                     .stroke(Color.brandMint.opacity(0.5), lineWidth: 1)

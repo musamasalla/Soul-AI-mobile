@@ -138,7 +138,7 @@ struct MeditationView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.brandMint)
-                        .foregroundColor(.black)
+                        .foregroundColor(.AppTheme.primaryText)
                         .cornerRadius(12)
                     }
                     .disabled(viewModel.isLoading)
@@ -313,7 +313,7 @@ struct MeditationView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.brandMint)
-                        .foregroundColor(.black)
+                        .foregroundColor(.AppTheme.primaryText)
                         .cornerRadius(12)
                     }
                     .disabled(viewModel.isLoading)
