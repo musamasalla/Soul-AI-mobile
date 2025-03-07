@@ -56,12 +56,12 @@ class SupabaseService: SupabaseServiceProtocol {
                 return
             }
             
-            guard let httpResponse = response as? HTTPURLResponse else {
+                guard let httpResponse = response as? HTTPURLResponse else {
                 completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
                 return
-            }
-            
-            guard (200...299).contains(httpResponse.statusCode) else {
+                }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
                 completion(.failure(NSError(domain: "SupabaseErrorDomain", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(httpResponse.statusCode)"])))
                 return
             }
@@ -71,7 +71,7 @@ class SupabaseService: SupabaseServiceProtocol {
                 return
             }
             
-            if let responseString = String(data: data, encoding: .utf8) {
+                if let responseString = String(data: data, encoding: .utf8) {
                 completion(.success(responseString))
             } else {
                 completion(.failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"])))
@@ -227,17 +227,17 @@ class SupabaseService: SupabaseServiceProtocol {
             // Create a URL for the subscriptions endpoint
             guard let url = URL(string: "\(SupabaseConfig.supabaseUrl)/rest/v1/subscriptions?user_id=eq.\(userId)&status=eq.active&select=*&limit=1") else {
                 return .success(SubscriptionStatus(isActive: false, tier: "free"))
-            }
-            
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            
-            // Add headers
-            for (key, value) in SupabaseConfig.headers() {
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
                 request.addValue(value, forHTTPHeaderField: key)
-            }
-            
-            // Add additional headers for Supabase REST API
+        }
+        
+        // Add additional headers for Supabase REST API
             request.addValue("application/json", forHTTPHeaderField: "Accept")
             
             // Perform the request
@@ -281,21 +281,21 @@ class SupabaseService: SupabaseServiceProtocol {
     func fetchPremiumPodcasts() async -> Result<[PremiumPodcast], Error> {
         do {
             // Create a URL for the premium podcasts endpoint
-            guard let url = URL(string: "\(SupabaseConfig.supabaseUrl)/rest/v1/premium_podcasts?select=*&order=created_at.desc") else {
+        guard let url = URL(string: "\(SupabaseConfig.supabaseUrl)/rest/v1/premium_podcasts?select=*&order=created_at.desc") else {
                 return .success([])
-            }
-            
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            
-            // Add headers
-            for (key, value) in SupabaseConfig.headers() {
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
                 request.addValue(value, forHTTPHeaderField: key)
-            }
-            
-            // Add additional headers for Supabase REST API
+        }
+        
+        // Add additional headers for Supabase REST API
             request.addValue("application/json", forHTTPHeaderField: "Accept")
-            
+        
             // Perform the request
             let (data, response) = try await URLSession.shared.data(for: request)
             
@@ -312,11 +312,11 @@ class SupabaseService: SupabaseServiceProtocol {
             dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
             decoder.dateDecodingStrategy = .formatted(dateFormatter)
             
-            let podcasts = try decoder.decode([PremiumPodcast].self, from: data)
-            return .success(podcasts)
-        } catch {
+                let podcasts = try decoder.decode([PremiumPodcast].self, from: data)
+                return .success(podcasts)
+            } catch {
             // For demo purposes, return an empty array on error
-            return .success([])
+                return .success([])
         }
     }
     
@@ -331,16 +331,16 @@ class SupabaseService: SupabaseServiceProtocol {
             ]
             
             // Create URL request
-            guard let url = URL(string: SupabaseConfig.premiumPodcastEndpoint) else {
+        guard let url = URL(string: SupabaseConfig.premiumPodcastEndpoint) else {
                 return .failure(NSError(domain: "SupabaseErrorDomain", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]))
-            }
-            
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = 30
-            
-            // Add headers
-            for (key, value) in SupabaseConfig.headers() {
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        
+        // Add headers
+        for (key, value) in SupabaseConfig.headers() {
                 request.addValue(value, forHTTPHeaderField: key)
             }
             
@@ -363,8 +363,8 @@ class SupabaseService: SupabaseServiceProtocol {
             dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
             decoder.dateDecodingStrategy = .formatted(dateFormatter)
             
-            let podcast = try decoder.decode(PremiumPodcast.self, from: data)
-            return .success(podcast)
+                let podcast = try decoder.decode(PremiumPodcast.self, from: data)
+                return .success(podcast)
         } catch {
             return .failure(error)
         }

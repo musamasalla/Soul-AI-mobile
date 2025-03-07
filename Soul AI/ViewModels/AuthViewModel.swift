@@ -9,13 +9,17 @@ class AuthViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     private var cancellables = Set<AnyCancellable>()
-    private let supabaseService = SupabaseService.shared
+    public let supabaseService = SupabaseService.shared
     
     init() {
+        print("DEBUG: AuthViewModel initialized")
+        // Test Supabase connection
+        supabaseService.testSupabaseConnection()
         checkAuthStatus()
     }
     
     func checkAuthStatus() {
+        print("DEBUG: Checking auth status")
         Task {
             let result = await supabaseService.getCurrentUser()
             
@@ -24,9 +28,11 @@ class AuthViewModel: ObservableObject {
                 
                 switch result {
                 case .success(let user):
+                    print("DEBUG: Auth status check - User: \(String(describing: user))")
                     self.currentUser = user
                     self.isAuthenticated = user != nil
                 case .failure(let error):
+                    print("DEBUG: Auth status check failed - Error: \(error.localizedDescription)")
                     self.errorMessage = error.localizedDescription
                     self.isAuthenticated = false
                     self.currentUser = nil
@@ -36,10 +42,12 @@ class AuthViewModel: ObservableObject {
     }
     
     func signIn(email: String, password: String) {
+        print("DEBUG: Sign in attempt with email: \(email)")
         isLoading = true
         errorMessage = nil
         
         Task {
+            print("DEBUG: Calling supabaseService.signIn")
             let result = await supabaseService.signIn(email: email, password: password)
             
             DispatchQueue.main.async { [weak self] in
@@ -48,9 +56,11 @@ class AuthViewModel: ObservableObject {
                 
                 switch result {
                 case .success(let user):
+                    print("DEBUG: Sign in successful - User: \(user)")
                     self.currentUser = user
                     self.isAuthenticated = true
                 case .failure(let error):
+                    print("DEBUG: Sign in failed - Error: \(error.localizedDescription)")
                     self.errorMessage = error.localizedDescription
                 }
             }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AuthView: View {
-    @StateObject private var viewModel = AuthViewModel()
+    @EnvironmentObject var viewModel: AuthViewModel
     @State private var email = ""
     @State private var password = ""
     @State private var isSignUp = false
@@ -82,6 +82,20 @@ struct AuthView: View {
                     
                     // Sign in/up button
                     Button(action: {
+                        print("DEBUG: AuthView - Sign in/up button tapped with email: \(email)")
+                        
+                        // Add a direct test to see if the button action is being triggered
+                        if !isSignUp {
+                            print("DEBUG: AuthView - Directly testing authentication")
+                            Task {
+                                do {
+                                    print("DEBUG: AuthView - Direct test: Attempting to sign in with Supabase")
+                                    let result = await viewModel.supabaseService.signIn(email: email, password: password)
+                                    print("DEBUG: AuthView - Direct test result: \(result)")
+                                }
+                            }
+                        }
+                        
                         if isSignUp {
                             viewModel.signUp(email: email, password: password)
                         } else {
@@ -131,6 +145,9 @@ struct AuthView: View {
             } message: {
                 Text("If an account exists with that email, we've sent instructions to reset your password.")
             }
+        }
+        .onAppear {
+            print("DEBUG: AuthView appeared")
         }
     }
     
