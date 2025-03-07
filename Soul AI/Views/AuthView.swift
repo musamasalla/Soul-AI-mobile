@@ -4,6 +4,7 @@ struct AuthView: View {
     @EnvironmentObject var viewModel: AuthViewModel
     @State private var email = ""
     @State private var password = ""
+    @State private var confirmPassword = ""
     @State private var isSignUp = false
     @State private var showForgotPassword = false
     @State private var forgotPasswordEmail = ""
@@ -58,6 +59,20 @@ struct AuthView: View {
                             .cornerRadius(10)
                     }
                     
+                    // Confirm Password field (only for sign up)
+                    if isSignUp {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Confirm Password")
+                                .font(.subheadline)
+                                .foregroundColor(.AppTheme.secondaryText)
+                            
+                            SecureField("Confirm your password", text: $confirmPassword)
+                                .padding()
+                                .background(Color.AppTheme.inputBackground)
+                                .cornerRadius(10)
+                        }
+                    }
+                    
                     // Forgot password button (only for sign in)
                     if !isSignUp {
                         Button(action: {
@@ -84,22 +99,14 @@ struct AuthView: View {
                     Button(action: {
                         print("DEBUG: AuthView - Sign in/up button tapped with email: \(email)")
                         
-                        // Add a direct test to see if the button action is being triggered
-                        if !isSignUp {
-                            print("DEBUG: AuthView - Directly testing authentication")
-                            Task {
-                                do {
-                                    print("DEBUG: AuthView - Direct test: Attempting to sign in with Supabase")
-                                    let result = await viewModel.supabaseService.signIn(email: email, password: password)
-                                    print("DEBUG: AuthView - Direct test result: \(result)")
-                                }
-                            }
-                        }
-                        
+                        // Update viewModel properties
+                        viewModel.email = email
+                        viewModel.password = password
                         if isSignUp {
-                            viewModel.signUp(email: email, password: password)
+                            viewModel.confirmPassword = confirmPassword
+                            viewModel.signUp()
                         } else {
-                            viewModel.signIn(email: email, password: password)
+                            viewModel.signIn()
                         }
                     }) {
                         if viewModel.isLoading {
@@ -115,13 +122,14 @@ struct AuthView: View {
                     .background(Color.AppTheme.brandMint)
                     .foregroundColor(.white)
                     .cornerRadius(10)
-                    .disabled(email.isEmpty || password.isEmpty || viewModel.isLoading)
-                    .opacity((email.isEmpty || password.isEmpty || viewModel.isLoading) ? 0.7 : 1)
+                    .disabled(email.isEmpty || password.isEmpty || viewModel.isLoading || (isSignUp && password != confirmPassword))
+                    .opacity((email.isEmpty || password.isEmpty || viewModel.isLoading || (isSignUp && password != confirmPassword)) ? 0.7 : 1)
                     
                     // Toggle between sign in and sign up
                     Button(action: {
                         isSignUp.toggle()
                         viewModel.errorMessage = nil
+                        confirmPassword = ""
                     }) {
                         Text(isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
                             .font(.subheadline)
@@ -178,7 +186,8 @@ struct AuthView: View {
                     .padding(.horizontal)
                 
                 Button(action: {
-                    viewModel.resetPassword(email: forgotPasswordEmail)
+                    viewModel.email = forgotPasswordEmail
+                    viewModel.resetPassword()
                     showForgotPassword = false
                     showResetPasswordConfirmation = true
                 }) {

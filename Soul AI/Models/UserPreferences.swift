@@ -188,9 +188,9 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
     func fetchSubscriptionStatus() async {
         let result = await SupabaseService.shared.fetchSubscriptionStatus()
         
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
+        // No need to extract anything here, we'll handle it in the switch statement
+        
+        await MainActor.run {
             switch result {
             case .success(let status):
                 if status.isActive {
@@ -199,13 +199,18 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
                     } else {
                         self.subscriptionTier = .free
                     }
-                    self.subscriptionExpiryDate = status.expiresAt
+                    
+                    // Set expiry date if available
+                    if let expiryDate = status.expiresAt {
+                        self.subscriptionExpiryDate = expiryDate
+                    }
                 } else {
                     self.subscriptionTier = .free
                     self.subscriptionExpiryDate = nil
                 }
-            case .failure:
-                // In case of error, default to free tier
+            case .failure(let error):
+                print("Failed to fetch subscription status: \(error.localizedDescription)")
+                // Default to free tier on error
                 self.subscriptionTier = .free
                 self.subscriptionExpiryDate = nil
             }

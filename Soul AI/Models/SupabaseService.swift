@@ -99,7 +99,7 @@ class SupabaseService: SupabaseServiceProtocol {
         do {
             // Use only the signUp method which is available in the SDK
             print("DEBUG: Trying supabase.auth.signUp")
-            let authResponse = try await supabase.auth.signUp(
+            _ = try await supabase.auth.signUp(
                 email: email,
                 password: password
             )
@@ -128,7 +128,7 @@ class SupabaseService: SupabaseServiceProtocol {
             print("DEBUG: SupabaseService - attempting to sign in with Supabase")
             // Use only the signIn method which is available in the SDK
             print("DEBUG: Trying supabase.auth.signIn")
-            let authResponse = try await supabase.auth.signIn(
+            _ = try await supabase.auth.signIn(
                 email: email,
                 password: password
             )
@@ -178,33 +178,28 @@ class SupabaseService: SupabaseServiceProtocol {
     
     func getCurrentUser() async -> Result<User?, Error> {
         print("DEBUG: SupabaseService - getCurrentUser called")
+        
         do {
-            // Try to get the session
-            do {
-                print("DEBUG: SupabaseService - attempting to get session")
-                let _ = try await supabase.auth.session
-                print("DEBUG: SupabaseService - session found")
-                
-                // If we get here, we have a session, so create a mock user
-                let userId = UUID().uuidString
-                let userEmail = "user@example.com"
-                
-                let appUser = User(
-                    id: userId,
-                    email: userEmail,
-                    name: userEmail.components(separatedBy: "@").first ?? "User"
-                )
-                
-                print("DEBUG: SupabaseService - returning mock user: \(appUser)")
-                return .success(appUser)
-            } catch {
-                // No session, return nil
-                print("DEBUG: SupabaseService - no session found, returning nil user")
-                return .success(nil)
-            }
+            print("DEBUG: SupabaseService - attempting to get session")
+            let _ = try await supabase.auth.session
+            print("DEBUG: SupabaseService - session found")
+            
+            // If we get here, we have a session, so create a mock user
+            let userId = UUID().uuidString
+            let userEmail = "user@example.com"
+            
+            let appUser = User(
+                id: userId,
+                email: userEmail,
+                name: userEmail.components(separatedBy: "@").first ?? "User"
+            )
+            
+            print("DEBUG: SupabaseService - returning mock user: \(appUser)")
+            return .success(appUser)
         } catch {
-            print("DEBUG: SupabaseService - getCurrentUser failed with error: \(error.localizedDescription)")
-            return .failure(error)
+            // No session, return nil
+            print("DEBUG: SupabaseService - no session found, returning nil user")
+            return .success(nil)
         }
     }
     
@@ -385,15 +380,13 @@ class SupabaseService: SupabaseServiceProtocol {
     func testSupabaseConnection() {
         print("DEBUG: Testing Supabase connection")
         print("DEBUG: Supabase URL: \(SupabaseConfig.supabaseUrl)")
-        print("DEBUG: Supabase client initialized: \(supabase != nil)")
+        print("DEBUG: Supabase client initialized: true")
         
         Task {
-            do {
-                print("DEBUG: Attempting to get Supabase session")
-                let session = try? await supabase.auth.session
-                print("DEBUG: Supabase session: \(String(describing: session))")
-            } catch {
-                print("DEBUG: Error getting Supabase session: \(error.localizedDescription)")
+            if let session = try? await supabase.auth.session {
+                print("DEBUG: Supabase session found: \(session)")
+            } else {
+                print("DEBUG: No Supabase session found")
             }
         }
     }

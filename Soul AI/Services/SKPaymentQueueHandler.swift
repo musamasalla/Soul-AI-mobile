@@ -1,107 +1,231 @@
 import StoreKit
+import Combine
 
-/// A class that handles StoreKit payment queue operations
-class SKPaymentQueueHandler: NSObject, SKPaymentTransactionObserver {
+/// A class that handles StoreKit 2 transaction operations
+class SKPaymentQueueHandler: NSObject {
     
     static let shared = SKPaymentQueueHandler()
     
+    private var transactionListener: Task<Void, Error>?
+    private var cancellables = Set<AnyCancellable>()
+    
     private override init() {
         super.init()
-        SKPaymentQueue.default().add(self)
+        setupTransactionListener()
     }
     
     deinit {
-        SKPaymentQueue.default().remove(self)
+        transactionListener?.cancel()
     }
     
-    // MARK: - SKPaymentTransactionObserver
+    // MARK: - Transaction Listener
     
-    func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-        for transaction in transactions {
-            switch transaction.transactionState {
-            case .purchasing:
-                handlePurchasingState(for: transaction)
-            case .purchased:
-                handlePurchasedState(for: transaction)
-            case .failed:
-                handleFailedState(for: transaction)
-            case .restored:
-                handleRestoredState(for: transaction)
-            case .deferred:
-                handleDeferredState(for: transaction)
-            @unknown default:
-                print("Unknown transaction state: \(transaction.transactionState)")
+    private func setupTransactionListener() {
+        // Start listening for transactions
+        transactionListener = Task.detached {
+            // Iterate through any transactions that don't have a call to `finish()`
+            for await verificationResult in Transaction.updates {
+                // Check the verification result
+                switch verificationResult {
+                case .verified(let transaction):
+                    // Handle the transaction
+                    await self.handleVerifiedTransaction(transaction)
+                case .unverified(let transaction, let error):
+                    // Handle the unverified transaction
+                    print("Unverified transaction: \(error.localizedDescription)")
+                    await self.handleUnverifiedTransaction(transaction, error: error)
+                }
             }
         }
     }
     
-    func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
-        print("Removed transactions: \(transactions.count)")
-    }
-    
-    func paymentQueue(_ queue: SKPaymentQueue, restoreCompletedTransactionsFailedWithError error: Error) {
-        print("Restore failed with error: \(error.localizedDescription)")
-        NotificationCenter.default.post(name: .subscriptionRestoreFailed, object: error)
-    }
-    
-    func paymentQueueRestoreCompletedTransactionsFinished(_ queue: SKPaymentQueue) {
-        print("Restore completed")
-        NotificationCenter.default.post(name: .subscriptionRestoreCompleted, object: nil)
-    }
-    
     // MARK: - Transaction Handling
     
-    private func handlePurchasingState(for transaction: SKPaymentTransaction) {
-        print("Transaction is in purchasing state: \(transaction.payment.productIdentifier)")
-    }
-    
-    private func handlePurchasedState(for transaction: SKPaymentTransaction) {
-        print("Transaction purchased: \(transaction.payment.productIdentifier)")
-        
-        // Verify the purchase with your server or validate the receipt
-        verifyPurchase(transaction: transaction)
-        
-        // Finish the transaction after verification
-        SKPaymentQueue.default().finishTransaction(transaction)
-        
-        // Notify that a purchase was completed
-        NotificationCenter.default.post(name: .subscriptionPurchaseCompleted, object: transaction)
-    }
-    
-    private func handleFailedState(for transaction: SKPaymentTransaction) {
-        print("Transaction failed: \(transaction.payment.productIdentifier)")
-        
-        if let error = transaction.error {
-            print("Error: \(error.localizedDescription)")
-            NotificationCenter.default.post(name: .subscriptionPurchaseFailed, object: error)
+    private func handleVerifiedTransaction(_ transaction: Transaction) async {
+        // Handle the transaction based on its state
+        if let _ = transaction.revocationDate {
+            // Transaction was revoked
+            print("Transaction was revoked: \(transaction.productID)")
+        } else {
+            // Transaction is valid
+            switch transaction.productType {
+            case .autoRenewable:
+                await handleAutoRenewableTransaction(transaction)
+            case .nonConsumable:
+                await handleNonConsumableTransaction(transaction)
+            case .consumable:
+                await handleConsumableTransaction(transaction)
+            case .nonRenewable:
+                await handleNonRenewableTransaction(transaction)
+            default:
+                print("Unknown product type: \(transaction.productType)")
+            }
         }
         
-        SKPaymentQueue.default().finishTransaction(transaction)
+        // Finish the transaction
+        await transaction.finish()
     }
     
-    private func handleRestoredState(for transaction: SKPaymentTransaction) {
-        print("Transaction restored: \(transaction.payment.productIdentifier)")
+    private func handleUnverifiedTransaction(_ transaction: Transaction, error: VerificationResult<Transaction>.VerificationError) async {
+        // Handle unverified transaction
+        print("Unverified transaction: \(transaction.productID), error: \(error)")
         
-        // Verify the restored purchase
-        verifyPurchase(transaction: transaction)
+        // Post notification about the failed verification
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .subscriptionVerificationFailed, object: error)
+        }
         
-        SKPaymentQueue.default().finishTransaction(transaction)
+        // Finish the transaction
+        await transaction.finish()
     }
     
-    private func handleDeferredState(for transaction: SKPaymentTransaction) {
-        print("Transaction deferred: \(transaction.payment.productIdentifier)")
-        // The transaction is in the queue, but its final status is pending external action
+    private func handleAutoRenewableTransaction(_ transaction: Transaction) async {
+        print("Auto-renewable subscription transaction: \(transaction.productID)")
+        
+        // Verify the purchase with your server
+        verifyPurchase(productID: transaction.productID, transactionID: transaction.id)
+        
+        // Notify that a purchase was completed
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .subscriptionPurchaseCompleted, object: transaction)
+        }
+    }
+    
+    private func handleNonConsumableTransaction(_ transaction: Transaction) async {
+        print("Non-consumable transaction: \(transaction.productID)")
+        
+        // Verify the purchase with your server
+        verifyPurchase(productID: transaction.productID, transactionID: transaction.id)
+        
+        // Notify that a purchase was completed
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .subscriptionPurchaseCompleted, object: transaction)
+        }
+    }
+    
+    private func handleConsumableTransaction(_ transaction: Transaction) async {
+        print("Consumable transaction: \(transaction.productID)")
+        
+        // Verify the purchase with your server
+        verifyPurchase(productID: transaction.productID, transactionID: transaction.id)
+        
+        // Notify that a purchase was completed
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .subscriptionPurchaseCompleted, object: transaction)
+        }
+    }
+    
+    private func handleNonRenewableTransaction(_ transaction: Transaction) async {
+        print("Non-renewable transaction: \(transaction.productID)")
+        
+        // Verify the purchase with your server
+        verifyPurchase(productID: transaction.productID, transactionID: transaction.id)
+        
+        // Notify that a purchase was completed
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .subscriptionPurchaseCompleted, object: transaction)
+        }
+    }
+    
+    // MARK: - Purchase Methods
+    
+    /// Purchase a product
+    /// - Parameter productID: The product identifier to purchase
+    func purchase(productID: String) async throws {
+        // Get the product
+        let products = try await Product.products(for: [productID])
+        guard let product = products.first else {
+            throw StoreError.productNotFound
+        }
+        
+        // Purchase the product
+        let result = try await product.purchase()
+        
+        // Handle the purchase result
+        switch result {
+        case .success(let verificationResult):
+            // Check the verification result
+            switch verificationResult {
+            case .verified(let transaction):
+                // Handle the transaction
+                await handleVerifiedTransaction(transaction)
+            case .unverified(let transaction, let error):
+                // Handle the unverified transaction
+                await handleUnverifiedTransaction(transaction, error: error)
+            }
+        case .userCancelled:
+            throw StoreError.userCancelled
+        case .pending:
+            print("Purchase is pending")
+        @unknown default:
+            throw StoreError.unknown
+        }
+    }
+    
+    /// Restore purchases
+    func restorePurchases() async {
+        do {
+            // Request a refresh of the app receipt
+            try await AppStore.sync()
+            
+            // Check for any transactions
+            var hasTransactions = false
+            var transactionCount = 0
+            
+            // Process current entitlements
+            for await verificationResult in Transaction.currentEntitlements {
+                hasTransactions = true
+                transactionCount += 1
+                
+                switch verificationResult {
+                case .verified(let transaction):
+                    // Handle the transaction
+                    await handleVerifiedTransaction(transaction)
+                case .unverified(let transaction, let error):
+                    // Handle the unverified transaction
+                    await handleUnverifiedTransaction(transaction, error: error)
+                }
+            }
+            
+            // Notify that restoration is complete
+            DispatchQueue.main.async {
+                if hasTransactions {
+                    print("Restored \(transactionCount) transactions")
+                } else {
+                    print("No transactions to restore")
+                }
+                NotificationCenter.default.post(name: .subscriptionRestoreCompleted, object: nil)
+            }
+        } catch {
+            print("Restore failed with error: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .subscriptionRestoreFailed, object: error)
+            }
+        }
     }
     
     // MARK: - Purchase Verification
     
-    private func verifyPurchase(transaction: SKPaymentTransaction) {
+    private func verifyPurchase(productID: String, transactionID: UInt64) {
         // Here you would typically validate the receipt with Apple's servers
         // and update your backend about the purchase
         
         // For now, we'll just post a notification that a verification is needed
-        NotificationCenter.default.post(name: .subscriptionVerificationNeeded, object: transaction)
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .subscriptionVerificationNeeded,
+                object: ["productID": productID, "transactionID": transactionID]
+            )
+        }
     }
+}
+
+// MARK: - Store Errors
+
+enum StoreError: Error {
+    case productNotFound
+    case userCancelled
+    case unknown
 }
 
 // MARK: - Notification Names
@@ -112,4 +236,5 @@ extension Notification.Name {
     static let subscriptionRestoreCompleted = Notification.Name("subscriptionRestoreCompleted")
     static let subscriptionRestoreFailed = Notification.Name("subscriptionRestoreFailed")
     static let subscriptionVerificationNeeded = Notification.Name("subscriptionVerificationNeeded")
+    static let subscriptionVerificationFailed = Notification.Name("subscriptionVerificationFailed")
 } 

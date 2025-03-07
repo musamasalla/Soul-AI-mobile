@@ -35,21 +35,13 @@ struct Soul_AIApp: App {
                     // Uncomment the line below to reset to free plan for testing
                     // resetToFreePlan()
                     
-                    if let url = Bundle.main.url(forResource: "Subscriptions", withExtension: "storekit") {
-                        // Use our SKPaymentQueueHandler singleton that's already initialized
-                        // and already added to the payment queue
-                        
-                        // For StoreKit 2 testing configuration (iOS 15+)
-                        if #available(iOS 15.0, *) {
-                            // StoreKit 2 uses a different approach for testing
-                            // The .storekit file is automatically loaded in debug mode
-                            // No need to manually load it
-                        } else {
-                            // For older iOS versions, we rely on our SKPaymentQueueHandler
-                            // which is already set up
-                        }
-                    }
+                    // For StoreKit 2 testing configuration
+                    // The .storekit file is automatically loaded in debug mode
+                    // No need to manually load it
                     #endif
+                    
+                    // Start listening for transactions
+                    // This is handled by our SKPaymentQueueHandler
                 }
         }
     }

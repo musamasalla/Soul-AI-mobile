@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import AVFoundation
 
+@MainActor
 class PremiumPodcastViewModel: ObservableObject {
     @Published var podcasts: [PremiumPodcast] = []
     @Published var isLoading: Bool = false
@@ -41,7 +42,10 @@ class PremiumPodcastViewModel: ObservableObject {
     }
     
     deinit {
-        stopPolling()
+        // Since stopPolling is @MainActor isolated, we need to handle it differently in deinit
+        // Just invalidate the timer directly
+        pollingTimer?.invalidate()
+        pollingTimer = nil
     }
     
     // MARK: - Computed Properties
@@ -94,28 +98,24 @@ class PremiumPodcastViewModel: ObservableObject {
             voices: voiceStrings
         )
         
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+        self.isGenerating = false
+        
+        switch result {
+        case .success(let podcast):
+            // Add the new podcast to the list
+            self.podcasts.insert(podcast, at: 0)
             
-            self.isGenerating = false
+            // Add the character usage to the user's total
+            self.preferences.addCharacterUsage(podcast.characterCount)
             
-            switch result {
-            case .success(let podcast):
-                // Add the new podcast to the list
-                self.podcasts.insert(podcast, at: 0)
-                
-                // Add the character usage to the user's total
-                self.preferences.addCharacterUsage(podcast.characterCount)
-                
-                // If the podcast is still generating, add it to pending list and start polling
-                if podcast.status == .generating {
-                    self.pendingPodcastIds.insert(podcast.id)
-                    self.startPolling()
-                }
-                
-            case .failure:
-                self.error = .serverError
+            // If the podcast is still generating, add it to pending list and start polling
+            if podcast.status == .generating {
+                self.pendingPodcastIds.insert(podcast.id)
+                self.startPolling()
             }
+            
+        case .failure:
+            self.error = .serverError
         }
     }
     
@@ -126,27 +126,23 @@ class PremiumPodcastViewModel: ObservableObject {
         
         let result = await SupabaseService.shared.fetchPremiumPodcasts()
         
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+        self.isLoading = false
+        
+        switch result {
+        case .success(let podcasts):
+            self.podcasts = podcasts
             
-            self.isLoading = false
-            
-            switch result {
-            case .success(let podcasts):
-                self.podcasts = podcasts
-                
-                // Check for pending podcasts
-                let generatingPodcasts = podcasts.filter { $0.status == .generating }
-                if !generatingPodcasts.isEmpty {
-                    for podcast in generatingPodcasts {
-                        self.pendingPodcastIds.insert(podcast.id)
-                    }
-                    self.startPolling()
+            // Check for pending podcasts
+            let generatingPodcasts = podcasts.filter { $0.status == .generating }
+            if !generatingPodcasts.isEmpty {
+                for podcast in generatingPodcasts {
+                    self.pendingPodcastIds.insert(podcast.id)
                 }
-                
-            case .failure:
-                self.error = .serverError
+                self.startPolling()
             }
+            
+        case .failure:
+            self.error = .serverError
         }
     }
     
@@ -168,7 +164,10 @@ class PremiumPodcastViewModel: ObservableObject {
         
         // Create a timer that polls every 5 seconds
         pollingTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.checkPendingPodcasts()
+            guard let self = self else { return }
+            Task { @MainActor in
+                await self.checkPendingPodcasts()
+            }
         }
     }
     
@@ -179,16 +178,14 @@ class PremiumPodcastViewModel: ObservableObject {
     }
     
     // Check for updates to pending podcasts
-    private func checkPendingPodcasts() {
+    private func checkPendingPodcasts() async {
         guard !pendingPodcastIds.isEmpty else {
             stopPolling()
             return
         }
         
         // Fetch the latest podcast data
-        Task {
-            await fetchPodcasts()
-        }
+        await fetchPodcasts()
     }
     
     func playPodcast(podcast: PremiumPodcast) {
