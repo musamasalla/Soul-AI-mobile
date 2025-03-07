@@ -18,99 +18,21 @@ struct ContentView: View {
             if !preferences.hasSeenWelcome {
                 WelcomeView(hasSeenWelcome: $preferences.hasSeenWelcome)
                     .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+                    .onAppear {
+                        print("DEBUG: ContentView - Showing WelcomeView")
+                    }
             } else if !authViewModel.isAuthenticated {
                 AuthView()
                     .environmentObject(authViewModel)
                     .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+                    .onAppear {
+                        print("DEBUG: ContentView - Showing AuthView because isAuthenticated is \(authViewModel.isAuthenticated)")
+                    }
             } else {
-                TabView(selection: $selectedTab) {
-                    // Chat Tab
-                    NavigationView {
-                        ChatView()
-                            .navigationBarItems(trailing: Button(action: {
-                                showSettings = true
-                            }) {
-                                Image(systemName: "gear")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.brandMint)
-                            })
+                mainTabView
+                    .onAppear {
+                        print("DEBUG: ContentView - Showing TabView because isAuthenticated is \(authViewModel.isAuthenticated)")
                     }
-                    .tabItem {
-                        Label("Chat", systemImage: "message.fill")
-                    }
-                    .tag(0)
-                    
-                    // Daily Inspiration Tab
-                    NavigationView {
-                        DailyInspirationView()
-                            .navigationBarItems(trailing: Button(action: {
-                                showSettings = true
-                            }) {
-                                Image(systemName: "gear")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.brandMint)
-                            })
-                    }
-                    .tabItem {
-                        Label("Inspiration", systemImage: "sun.max.fill")
-                    }
-                    .tag(1)
-                    
-                    // Meditation Tab
-                    NavigationView {
-                        MeditationView()
-                            .navigationBarItems(trailing: Button(action: {
-                                showSettings = true
-                            }) {
-                                Image(systemName: "gear")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.brandMint)
-                            })
-                    }
-                    .tabItem {
-                        Label("Meditation", systemImage: "heart.fill")
-                    }
-                    .tag(2)
-                    
-                    // Bible Study Tab
-                    NavigationView {
-                        BibleStudyView()
-                            .navigationBarItems(trailing: Button(action: {
-                                showSettings = true
-                            }) {
-                                Image(systemName: "gear")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.brandMint)
-                            })
-                    }
-                    .tabItem {
-                        Label("Bible Study", systemImage: "book.fill")
-                    }
-                    .tag(3)
-                    
-                    // Premium Podcasts Tab (only visible for premium subscribers)
-                    if preferences.isSubscriptionActive && preferences.subscriptionTier == .premium {
-                        NavigationView {
-                            PremiumPodcastView()
-                                .navigationBarItems(trailing: Button(action: {
-                                    showSettings = true
-                                }) {
-                                    Image(systemName: "gear")
-                                        .font(.system(size: 18))
-                                        .foregroundColor(.brandMint)
-                                })
-                        }
-                        .tabItem {
-                            Label("Premium", systemImage: "star.fill")
-                        }
-                        .tag(4)
-                    }
-                }
-                .sheet(isPresented: $showSettings) {
-                    SettingsView(preferences: preferences, authViewModel: authViewModel)
-                }
-                .accentColor(.brandMint)
-                .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
             }
         }
         .environmentObject(preferences)
@@ -120,6 +42,101 @@ struct ContentView: View {
             if let user = authViewModel.currentUser {
                 preferences.userName = user.name
             }
+        }
+    }
+    
+    // Extract TabView to a computed property
+    private var mainTabView: some View {
+        TabView(selection: $selectedTab) {
+            // Chat Tab
+            NavigationView {
+                ChatView()
+                    .navigationBarItems(trailing: settingsButton)
+            }
+            .tabItem {
+                Label("Chat", systemImage: "message.fill")
+            }
+            .tag(0)
+            
+            // Daily Inspiration Tab
+            NavigationView {
+                DailyInspirationView()
+                    .navigationBarItems(trailing: settingsButton)
+            }
+            .tabItem {
+                Label("Inspiration", systemImage: "sun.max.fill")
+            }
+            .tag(1)
+            
+            // Meditation Tab
+            NavigationView {
+                MeditationView()
+                    .navigationBarItems(trailing: settingsButton)
+            }
+            .tabItem {
+                Label("Meditation", systemImage: "heart.fill")
+            }
+            .tag(2)
+            
+            // Bible Study Tab
+            NavigationView {
+                BibleStudyView()
+                    .navigationBarItems(trailing: settingsButton)
+            }
+            .tabItem {
+                Label("Bible Study", systemImage: "book.fill")
+            }
+            .tag(3)
+            
+            // Premium Podcasts Tab (always included but conditionally shown)
+            NavigationView {
+                Group {
+                    if preferences.isSubscriptionActive && preferences.subscriptionTier == .premium {
+                        PremiumPodcastView()
+                            .navigationBarItems(trailing: settingsButton)
+                    } else {
+                        // Placeholder view when premium is not active
+                        VStack {
+                            Text("Premium Content")
+                                .font(.title)
+                            Text("Subscribe to access premium podcasts")
+                                .foregroundColor(.secondary)
+                            Button("Subscribe Now") {
+                                // Show subscription view
+                                selectedTab = 0 // Switch to main tab
+                                showSettings = true // Open settings which has subscription options
+                            }
+                            .padding()
+                            .background(Color.AppTheme.brandMint)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                            .padding(.top, 20)
+                        }
+                        .padding()
+                        .navigationBarItems(trailing: settingsButton)
+                    }
+                }
+            }
+            .tabItem {
+                Label("Premium", systemImage: "star.fill")
+            }
+            .tag(4)
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(preferences: preferences, authViewModel: authViewModel)
+        }
+        .accentColor(.brandMint)
+        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+    }
+    
+    // Extract settings button to a computed property
+    private var settingsButton: some View {
+        Button(action: {
+            showSettings = true
+        }) {
+            Image(systemName: "gear")
+                .font(.system(size: 18))
+                .foregroundColor(.AppTheme.brandMint)
         }
     }
 }
