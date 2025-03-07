@@ -80,11 +80,13 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
     }
     
     init() {
+        // Initialize all stored properties first
         self.hasSeenWelcome = UserDefaults.standard.bool(forKey: "hasSeenWelcome")
         
-        // Check if dark mode preference exists, otherwise use system appearance
-        if UserDefaults.standard.object(forKey: "isDarkMode") != nil {
-            self.isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
+        // Initialize isDarkMode without using self
+        let storedDarkMode = UserDefaults.standard.object(forKey: "isDarkMode") as? Bool
+        if let storedValue = storedDarkMode {
+            self.isDarkMode = storedValue
         } else {
             // Use system appearance as default
             let systemAppearance = UITraitCollection.current.userInterfaceStyle
