@@ -17,6 +17,9 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
     @Published var isDarkMode: Bool {
         didSet {
             UserDefaults.standard.set(isDarkMode, forKey: "isDarkMode")
+            print("DEBUG: Dark mode preference changed to \(isDarkMode)")
+            // Force UI update by posting a notification
+            NotificationCenter.default.post(name: Notification.Name("DarkModeChanged"), object: nil)
         }
     }
     
@@ -78,7 +81,17 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
     
     init() {
         self.hasSeenWelcome = UserDefaults.standard.bool(forKey: "hasSeenWelcome")
-        self.isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
+        
+        // Check if dark mode preference exists, otherwise use system appearance
+        if UserDefaults.standard.object(forKey: "isDarkMode") != nil {
+            self.isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
+        } else {
+            // Use system appearance as default
+            let systemAppearance = UITraitCollection.current.userInterfaceStyle
+            self.isDarkMode = systemAppearance == .dark
+            // Save the initial value
+            UserDefaults.standard.set(self.isDarkMode, forKey: "isDarkMode")
+        }
         
         if let fontSizeRawValue = UserDefaults.standard.string(forKey: "fontSize"),
            let fontSize = FontSize(rawValue: fontSizeRawValue) {

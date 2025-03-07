@@ -12,6 +12,7 @@ struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @State private var showSettings = false
     @State private var selectedTab = 0
+    @State private var forceUpdate = false
     
     var body: some View {
         Group {
@@ -37,10 +38,19 @@ struct ContentView: View {
         }
         .environmentObject(preferences)
         .environmentObject(authViewModel)
+        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+        .id(forceUpdate)
         .onAppear {
             // Update user preferences if authenticated
             if let user = authViewModel.currentUser {
                 preferences.userName = user.name
+            }
+            
+            // Add observer for dark mode changes
+            NotificationCenter.default.addObserver(forName: Notification.Name("DarkModeChanged"), object: nil, queue: .main) { _ in
+                print("DEBUG: ContentView received DarkModeChanged notification")
+                // Toggle forceUpdate to force view refresh
+                forceUpdate.toggle()
             }
         }
     }

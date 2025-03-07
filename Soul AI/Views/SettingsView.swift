@@ -159,6 +159,11 @@ struct SettingsView: View {
             Toggle("Dark Mode", isOn: $preferences.isDarkMode)
                 .foregroundColor(.AppTheme.primaryText)
                 .tint(Color.AppTheme.brandMint)
+                .onChange(of: preferences.isDarkMode) { oldValue, newValue in
+                    print("DEBUG: SettingsView - Dark mode toggle changed to \(newValue)")
+                    // Force UI update
+                    NotificationCenter.default.post(name: Notification.Name("DarkModeChanged"), object: nil)
+                }
             
             Picker("Font Size", selection: $preferences.fontSize) {
                 ForEach(FontSize.allCases) { size in

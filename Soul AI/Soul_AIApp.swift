@@ -22,6 +22,10 @@ struct Soul_AIApp: App {
                 .environmentObject(preferences)
                 .environmentObject(subscriptionService)
                 .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+                .onChange(of: preferences.isDarkMode) { _, newValue in
+                    // Force UI update when dark mode changes
+                    print("DEBUG: Dark mode changed to \(newValue ? "dark" : "light")")
+                }
                 .onAppear {
                     #if DEBUG
                     // Debug option to reset subscription tier to free
