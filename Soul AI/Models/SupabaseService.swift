@@ -84,12 +84,17 @@ class SupabaseService: SupabaseServiceProtocol {
     // MARK: - Authentication Methods
     
     func signUp(email: String, password: String) async -> Result<User, Error> {
+        print("DEBUG: SupabaseService - signUp called with email: \(email)")
         do {
+            // Use only the signUp method which is available in the SDK
+            print("DEBUG: Trying supabase.auth.signUp")
             let authResponse = try await supabase.auth.signUp(
                 email: email,
                 password: password
             )
             
+            print("DEBUG: SupabaseService - signUp successful")
+            
             // Create a user with the provided email
             let userId = UUID().uuidString // Generate a UUID as fallback
             
@@ -101,16 +106,23 @@ class SupabaseService: SupabaseServiceProtocol {
             
             return .success(appUser)
         } catch {
+            print("DEBUG: SupabaseService - signUp failed with error: \(error.localizedDescription)")
             return .failure(error)
         }
     }
     
     func signIn(email: String, password: String) async -> Result<User, Error> {
+        print("DEBUG: SupabaseService - signIn called with email: \(email)")
         do {
+            print("DEBUG: SupabaseService - attempting to sign in with Supabase")
+            // Use only the signIn method which is available in the SDK
+            print("DEBUG: Trying supabase.auth.signIn")
             let authResponse = try await supabase.auth.signIn(
                 email: email,
                 password: password
             )
+            
+            print("DEBUG: SupabaseService - signIn successful with Supabase")
             
             // Create a user with the provided email
             let userId = UUID().uuidString // Generate a UUID as fallback
@@ -121,35 +133,46 @@ class SupabaseService: SupabaseServiceProtocol {
                 name: email.components(separatedBy: "@").first ?? "User"
             )
             
+            print("DEBUG: SupabaseService - created app user: \(appUser)")
             return .success(appUser)
         } catch {
+            print("DEBUG: SupabaseService - signIn failed with error: \(error.localizedDescription)")
             return .failure(error)
         }
     }
     
     func signOut() async -> Result<Void, Error> {
+        print("DEBUG: SupabaseService - signOut called")
         do {
             try await supabase.auth.signOut()
+            print("DEBUG: SupabaseService - signOut successful")
             return .success(())
         } catch {
+            print("DEBUG: SupabaseService - signOut failed with error: \(error.localizedDescription)")
             return .failure(error)
         }
     }
     
     func resetPassword(email: String) async -> Result<Void, Error> {
+        print("DEBUG: SupabaseService - resetPassword called for email: \(email)")
         do {
             try await supabase.auth.resetPasswordForEmail(email)
+            print("DEBUG: SupabaseService - resetPassword successful")
             return .success(())
         } catch {
+            print("DEBUG: SupabaseService - resetPassword failed with error: \(error.localizedDescription)")
             return .failure(error)
         }
     }
     
     func getCurrentUser() async -> Result<User?, Error> {
+        print("DEBUG: SupabaseService - getCurrentUser called")
         do {
             // Try to get the session
             do {
+                print("DEBUG: SupabaseService - attempting to get session")
                 let _ = try await supabase.auth.session
+                print("DEBUG: SupabaseService - session found")
                 
                 // If we get here, we have a session, so create a mock user
                 let userId = UUID().uuidString
@@ -161,12 +184,15 @@ class SupabaseService: SupabaseServiceProtocol {
                     name: userEmail.components(separatedBy: "@").first ?? "User"
                 )
                 
+                print("DEBUG: SupabaseService - returning mock user: \(appUser)")
                 return .success(appUser)
             } catch {
                 // No session, return nil
+                print("DEBUG: SupabaseService - no session found, returning nil user")
                 return .success(nil)
             }
         } catch {
+            print("DEBUG: SupabaseService - getCurrentUser failed with error: \(error.localizedDescription)")
             return .failure(error)
         }
     }
@@ -341,6 +367,23 @@ class SupabaseService: SupabaseServiceProtocol {
             return .success(podcast)
         } catch {
             return .failure(error)
+        }
+    }
+    
+    // Test method to check if Supabase client is properly initialized
+    func testSupabaseConnection() {
+        print("DEBUG: Testing Supabase connection")
+        print("DEBUG: Supabase URL: \(SupabaseConfig.supabaseUrl)")
+        print("DEBUG: Supabase client initialized: \(supabase != nil)")
+        
+        Task {
+            do {
+                print("DEBUG: Attempting to get Supabase session")
+                let session = try? await supabase.auth.session
+                print("DEBUG: Supabase session: \(String(describing: session))")
+            } catch {
+                print("DEBUG: Error getting Supabase session: \(error.localizedDescription)")
+            }
         }
     }
 }
