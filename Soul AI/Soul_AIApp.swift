@@ -12,6 +12,7 @@ import StoreKit
 struct Soul_AIApp: App {
     @StateObject private var preferences = UserPreferences()
     @StateObject private var subscriptionService = SubscriptionService.shared
+    @StateObject private var themeManager = ThemeManager(isDarkMode: UserDefaults.standard.bool(forKey: "isDarkMode"))
     
     // Initialize the payment queue handler
     private let paymentQueueHandler = SKPaymentQueueHandler.shared
@@ -21,10 +22,12 @@ struct Soul_AIApp: App {
             ContentView()
                 .environmentObject(preferences)
                 .environmentObject(subscriptionService)
-                .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+                .environmentObject(themeManager)
+                .preferredColorScheme(themeManager.colorScheme)
                 .onChange(of: preferences.isDarkMode) { _, newValue in
-                    // Force UI update when dark mode changes
-                    print("DEBUG: Dark mode changed to \(newValue ? "dark" : "light")")
+                    // Update theme manager when preferences change
+                    themeManager.updateColorScheme(isDarkMode: newValue)
+                    print("DEBUG: App detected isDarkMode change to \(newValue)")
                 }
                 .onAppear {
                     #if DEBUG

@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var preferences: UserPreferences
     @ObservedObject var authViewModel: AuthViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var username: String = ""
     @State private var showSignOutConfirmation = false
     
@@ -18,16 +19,17 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(preferences.isDarkMode ? .dark : .light, for: .navigationBar)
+        .toolbarColorScheme(themeManager.colorScheme, for: .navigationBar)
         .toolbarBackground(Color.AppTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .navigationBarItems(trailing: Button("Done") {
             presentationMode.wrappedValue.dismiss()
         }
         .foregroundColor(Color.AppTheme.brandMint))
-        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+        .preferredColorScheme(themeManager.colorScheme)
         .onAppear {
             username = preferences.userName
+            print("DEBUG: SettingsView appeared with colorScheme: \(themeManager.colorScheme)")
         }
         .alert("Sign Out", isPresented: $showSignOutConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -161,8 +163,8 @@ struct SettingsView: View {
                 .tint(Color.AppTheme.brandMint)
                 .onChange(of: preferences.isDarkMode) { oldValue, newValue in
                     print("DEBUG: SettingsView - Dark mode toggle changed to \(newValue)")
-                    // Force UI update
-                    NotificationCenter.default.post(name: Notification.Name("DarkModeChanged"), object: nil)
+                    // Update theme manager directly
+                    themeManager.updateColorScheme(isDarkMode: newValue)
                 }
             
             Picker("Font Size", selection: $preferences.fontSize) {

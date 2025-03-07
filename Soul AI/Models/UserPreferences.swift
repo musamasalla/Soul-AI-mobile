@@ -18,8 +18,6 @@ class UserPreferences: ObservableObject, UserPreferencesProtocol {
         didSet {
             UserDefaults.standard.set(isDarkMode, forKey: "isDarkMode")
             print("DEBUG: Dark mode preference changed to \(isDarkMode)")
-            // Force UI update by posting a notification
-            NotificationCenter.default.post(name: Notification.Name("DarkModeChanged"), object: nil)
         }
     }
     

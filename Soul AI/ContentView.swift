@@ -12,20 +12,20 @@ struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @State private var showSettings = false
     @State private var selectedTab = 0
-    @State private var forceUpdate = false
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         Group {
             if !preferences.hasSeenWelcome {
                 WelcomeView(hasSeenWelcome: $preferences.hasSeenWelcome)
-                    .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+                    .preferredColorScheme(themeManager.colorScheme)
                     .onAppear {
                         print("DEBUG: ContentView - Showing WelcomeView")
                     }
             } else if !authViewModel.isAuthenticated {
                 AuthView()
                     .environmentObject(authViewModel)
-                    .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+                    .preferredColorScheme(themeManager.colorScheme)
                     .onAppear {
                         print("DEBUG: ContentView - Showing AuthView because isAuthenticated is \(authViewModel.isAuthenticated)")
                     }
@@ -38,20 +38,14 @@ struct ContentView: View {
         }
         .environmentObject(preferences)
         .environmentObject(authViewModel)
-        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
-        .id(forceUpdate)
+        .preferredColorScheme(themeManager.colorScheme)
         .onAppear {
             // Update user preferences if authenticated
             if let user = authViewModel.currentUser {
                 preferences.userName = user.name
             }
             
-            // Add observer for dark mode changes
-            NotificationCenter.default.addObserver(forName: Notification.Name("DarkModeChanged"), object: nil, queue: .main) { _ in
-                print("DEBUG: ContentView received DarkModeChanged notification")
-                // Toggle forceUpdate to force view refresh
-                forceUpdate.toggle()
-            }
+            print("DEBUG: ContentView appeared with colorScheme: \(themeManager.colorScheme)")
         }
     }
     
@@ -63,7 +57,7 @@ struct ContentView: View {
                 ChatView()
                     .navigationBarItems(trailing: settingsButton)
             }
-            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+            .preferredColorScheme(themeManager.colorScheme)
             .tabItem {
                 Label("Chat", systemImage: "message.fill")
             }
@@ -74,7 +68,7 @@ struct ContentView: View {
                 DailyInspirationView()
                     .navigationBarItems(trailing: settingsButton)
             }
-            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+            .preferredColorScheme(themeManager.colorScheme)
             .tabItem {
                 Label("Inspiration", systemImage: "sun.max.fill")
             }
@@ -85,7 +79,7 @@ struct ContentView: View {
                 MeditationView()
                     .navigationBarItems(trailing: settingsButton)
             }
-            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+            .preferredColorScheme(themeManager.colorScheme)
             .tabItem {
                 Label("Meditation", systemImage: "heart.fill")
             }
@@ -96,7 +90,7 @@ struct ContentView: View {
                 BibleStudyView()
                     .navigationBarItems(trailing: settingsButton)
             }
-            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+            .preferredColorScheme(themeManager.colorScheme)
             .tabItem {
                 Label("Bible Study", systemImage: "book.fill")
             }
@@ -131,7 +125,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+            .preferredColorScheme(themeManager.colorScheme)
             .tabItem {
                 Label("Premium", systemImage: "star.fill")
             }
@@ -141,7 +135,7 @@ struct ContentView: View {
             SettingsView(preferences: preferences, authViewModel: authViewModel)
         }
         .accentColor(.brandMint)
-        .preferredColorScheme(preferences.isDarkMode ? .dark : .light)
+        .preferredColorScheme(themeManager.colorScheme)
     }
     
     // Extract settings button to a computed property
